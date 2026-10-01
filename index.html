@@ -109,8 +109,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-/* ===== ตั้งค่า: วาง Web App URL จาก Apps Script ตรงนี้ ===== */
-const API_URL = 'PASTE_WEB_APP_URL_HERE';
+/* ===== ตั้งค่า: Web App URL จาก Apps Script ===== */
+const API_URL = 'https://script.google.com/macros/s/AKfycbymhw3c7sedGRkvnEnM27Gu7XPgML6HiUKq3nOrkij9iRiX6xeX1DRzy8N07DUejKiozQ/exec';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -276,11 +276,7 @@ $('saveBtn').addEventListener('click', async () => {
   else toast('บันทึกไม่สำเร็จ');
 });
 
-if (API_URL.startsWith('PASTE')) {
-  $('loading').classList.add('d-none');
-  $('error').textContent = 'ยังไม่ได้ตั้งค่า API_URL ในไฟล์ index.html (ดู README)';
-  $('error').classList.remove('d-none');
-} else load();
+load();
 </script>
 </body>
 </html>
