@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Board Game</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+  body { background:#f4f6fb; }
+  .game-card { cursor:pointer; transition:transform .15s, box-shadow .15s; border:0; }
+  .game-card:hover { transform:translateY(-3px); box-shadow:0 .5rem 1rem rgba(0,0,0,.15); }
+  .cover { aspect-ratio:1/1; object-fit:cover; background:#dfe4ee; width:100%; }
+  .cover-ph { aspect-ratio:1/1; background:linear-gradient(135deg,#dfe4ee,#c9d2e6); display:flex; align-items:center; justify-content:center; font-size:3rem; color:#8793ad; }
+  .key-btn { width:34px; height:34px; padding:0; line-height:1; opacity:.75; }
+  .fab { position:fixed; right:16px; bottom:16px; z-index:1030; }
+</style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark sticky-top">
+  <div class="container">
+    <span class="navbar-brand mb-0 h1"><i class="bi bi-dice-5-fill me-2"></i>Board Game</span>
+    <button id="keyBtn" class="btn btn-outline-light btn-sm key-btn" aria-label="admin"><i class="bi bi-key-fill"></i></button>
+  </div>
+</nav>
+
+<!-- ===== หน้าร้าน (Public) ===== -->
+<main id="shop" class="container py-3">
+  <div class="row g-2 mb-3">
+    <div class="col-12 col-md-6"><input id="q" class="form-control" placeholder="ค้นหาชื่อเกม..."></div>
+    <div class="col-6 col-md-3"><select id="fCat" class="form-select"><option value="">ทุกแนว</option></select></div>
+    <div class="col-6 col-md-3"><select id="fStatus" class="form-select"><option value="">ทุกสถานะ</option><option>ว่าง</option><option>กำลังเล่น</option></select></div>
+  </div>
+  <div id="loading" class="text-center py-5"><div class="spinner-border"></div></div>
+  <div id="error" class="alert alert-danger d-none"></div>
+  <div id="grid" class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3"></div>
+</main>
+
+<button id="picksBtn" class="btn btn-primary rounded-pill shadow fab d-none"><i class="bi bi-check2-circle me-1"></i>เกมที่เลือก <span id="picksCount" class="badge bg-light text-primary">0</span></button>
+
+<!-- ===== หลังบ้าน (Admin) ===== -->
+<section id="admin" class="container py-3 d-none">
+  <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-gear-fill me-2"></i>จัดการบอร์ดเกม</h5>
+    <div class="d-flex gap-2">
+      <button id="addBtn" class="btn btn-success btn-sm"><i class="bi bi-plus-lg"></i> เพิ่มเกม</button>
+      <button id="backBtn" class="btn btn-outline-secondary btn-sm"><i class="bi bi-shop"></i></button>
+      <button id="logoutBtn" class="btn btn-outline-danger btn-sm"><i class="bi bi-box-arrow-right"></i></button>
+    </div>
+  </div>
+  <div class="card border-0 shadow-sm"><div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light"><tr><th>ID</th><th>ชื่อ</th><th class="d-none d-md-table-cell">แนว</th><th class="d-none d-md-table-cell">ผู้เล่น</th><th>สถานะ</th><th class="text-end"></th></tr></thead>
+      <tbody id="adminRows"></tbody>
+    </table>
+  </div></div>
+</section>
+
+<!-- Modal: รายละเอียดเกม -->
+<div class="modal fade" id="gameModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="mTitle"></h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <div id="mImg" class="mb-3"></div>
+    <div class="mb-2"><span id="mCat" class="badge bg-secondary me-1"></span><span id="mStatus" class="badge"></span></div>
+    <p class="mb-2"><i class="bi bi-people-fill me-1"></i><span id="mPlayers"></span></p>
+    <p id="mDesc" class="mb-0 text-body-secondary"></p>
+  </div>
+  <div class="modal-footer"><button id="pickBtn" class="btn btn-primary w-100"></button></div>
+</div></div></div>
+
+<!-- Modal: เกมที่เลือก -->
+<div class="modal fade" id="picksModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title">เกมที่เลือก</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><ul id="picksList" class="list-group"></ul></div>
+  <div class="modal-footer"><button id="clearPicks" class="btn btn-outline-secondary btn-sm">ล้างทั้งหมด</button></div>
+</div></div></div>
+
+<!-- Modal: Login -->
+<div class="modal fade" id="loginModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content">
+  <div class="modal-body">
+    <input id="lUser" class="form-control mb-2" placeholder="Username" autocomplete="username">
+    <input id="lPass" type="password" class="form-control mb-2" placeholder="Password" autocomplete="current-password">
+    <div id="lErr" class="text-danger small mb-2 d-none"></div>
+    <button id="lBtn" class="btn btn-dark w-100"><i class="bi bi-key-fill"></i></button>
+  </div>
+</div></div></div>
+
+<!-- Modal: เพิ่ม/แก้ไขเกม -->
+<div class="modal fade" id="editModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="eTitle"></h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <input type="hidden" id="eId">
+    <div class="mb-2"><label class="form-label small mb-0">ชื่อเกม *</label><input id="eName" class="form-control"></div>
+    <div class="row g-2 mb-2">
+      <div class="col-6"><label class="form-label small mb-0">แนวเกม</label><input id="eCat" class="form-control" placeholder="ปาร์ตี้, บลัฟ..."></div>
+      <div class="col-6"><label class="form-label small mb-0">ผู้เล่น</label><input id="ePlayers" class="form-control" placeholder="2-4 คน"></div>
+    </div>
+    <div class="mb-2"><label class="form-label small mb-0">ลิงก์รูปปก</label><input id="eImage" class="form-control" placeholder="https://..."></div>
+    <div class="mb-2"><label class="form-label small mb-0">สถานะ</label><select id="eStatus" class="form-select"><option>ว่าง</option><option>กำลังเล่น</option></select></div>
+    <div class="mb-2"><label class="form-label small mb-0">คำอธิบาย</label><textarea id="eDesc" class="form-control" rows="4"></textarea></div>
+  </div>
+  <div class="modal-footer"><button id="saveBtn" class="btn btn-success w-100">บันทึก</button></div>
+</div></div></div>
+
+<div class="toast-container position-fixed top-0 start-50 translate-middle-x p-3" style="z-index:2000">
+  <div id="toast" class="toast align-items-center text-bg-dark border-0"><div class="d-flex"><div id="toastMsg" class="toast-body"></div><button class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+/* ===== ตั้งค่า: วาง Web App URL จาก Apps Script ตรงนี้ ===== */
+const API_URL = 'PASTE_WEB_APP_URL_HERE';
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let games = [], token = '', picks = new Set(), current = null;
+try { token = sessionStorage.getItem('bg_token') || ''; } catch (e) {}
+
+const gameModal = new bootstrap.Modal($('gameModal'));
+const picksModal = new bootstrap.Modal($('picksModal'));
+const loginModal = new bootstrap.Modal($('loginModal'));
+const editModal = new bootstrap.Modal($('editModal'));
+const toast = msg => { $('toastMsg').textContent = msg; bootstrap.Toast.getOrCreateInstance($('toast'), {delay:2200}).show(); };
+
+/* ---------- API ---------- */
+async function post(payload) {
+  const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }); // text/plain => ไม่ติด CORS preflight
+  const d = await r.json();
+  if (d.error === 'unauthorized') { setToken(''); showShop(); toast('หมดเวลา กรุณาล็อกอินใหม่'); }
+  return d;
+}
+function setToken(t) { token = t; try { t ? sessionStorage.setItem('bg_token', t) : sessionStorage.removeItem('bg_token'); } catch (e) {} }
+
+async function load() {
+  $('loading').classList.remove('d-none'); $('error').classList.add('d-none');
+  try {
+    const r = await fetch(API_URL); const d = await r.json();
+    games = d.games || [];
+    const cats = [...new Set(games.map(g => g.category).filter(Boolean))];
+    const keep = $('fCat').value;
+    $('fCat').innerHTML = '<option value="">ทุกแนว</option>' + cats.map(c => `<option>${esc(c)}</option>`).join('');
+    $('fCat').value = cats.includes(keep) ? keep : '';
+    render(); renderAdmin();
+  } catch (e) {
+    $('error').textContent = 'โหลดข้อมูลไม่สำเร็จ — ตรวจสอบ API_URL และการ Deploy';
+    $('error').classList.remove('d-none');
+  }
+  $('loading').classList.add('d-none');
+}
+
+/* ---------- หน้าร้าน ---------- */
+const badge = s => s === 'ว่าง' ? 'bg-success' : 'bg-warning text-dark';
+const cover = (g, cls = '') => g.image
+  ? `<img class="cover ${cls}" src="${esc(g.image)}" alt="" loading="lazy" onerror="this.outerHTML='<div class=\\'cover-ph ${cls}\\'><i class=\\'bi bi-dice-5\\'></i></div>'">`
+  : `<div class="cover-ph ${cls}"><i class="bi bi-dice-5"></i></div>`;
+
+function render() {
+  const q = $('q').value.trim().toLowerCase(), c = $('fCat').value, s = $('fStatus').value;
+  const list = games.filter(g => (!q || g.name.toLowerCase().includes(q)) && (!c || g.category === c) && (!s || g.status === s));
+  $('grid').innerHTML = list.length ? list.map(g => `
+    <div class="col"><div class="card game-card h-100 shadow-sm" data-id="${esc(g.id)}">
+      ${cover(g, 'card-img-top')}
+      <div class="card-body p-2">
+        <div class="fw-semibold text-truncate">${esc(g.name)}</div>
+        <div class="small text-muted text-truncate">${esc(g.category)} · ${esc(g.players)}</div>
+        <span class="badge ${badge(g.status)} mt-1">${esc(g.status)}</span>
+        ${picks.has(g.id) ? '<i class="bi bi-check-circle-fill text-primary float-end mt-1"></i>' : ''}
+      </div></div></div>`).join('') : '<div class="col-12 text-center text-muted py-5">ไม่พบเกม</div>';
+}
+['q', 'fCat', 'fStatus'].forEach(id => $(id).addEventListener('input', render));
+
+$('grid').addEventListener('click', e => {
+  const el = e.target.closest('.game-card'); if (!el) return;
+  current = games.find(g => g.id === el.dataset.id); if (!current) return;
+  $('mTitle').textContent = current.name;
+  $('mImg').innerHTML = cover(current, 'rounded');
+  $('mCat').textContent = current.category || '-';
+  $('mStatus').textContent = current.status; $('mStatus').className = 'badge ' + badge(current.status);
+  $('mPlayers').textContent = current.players || '-';
+  $('mDesc').textContent = current.description || '';
+  updatePickBtn(); gameModal.show();
+});
+
+function updatePickBtn() {
+  const b = $('pickBtn'), on = picks.has(current.id);
+  b.disabled = current.status !== 'ว่าง';
+  b.className = 'btn w-100 ' + (on ? 'btn-outline-primary' : 'btn-primary');
+  b.innerHTML = current.status !== 'ว่าง' ? 'กำลังเล่นอยู่' : on ? 'ยกเลิกการเลือก' : '<i class="bi bi-check2-circle me-1"></i>เลือกเล่นเกมนี้';
+}
+$('pickBtn').addEventListener('click', () => {
+  picks.has(current.id) ? picks.delete(current.id) : picks.add(current.id);
+  updatePickBtn(); renderPicks(); render();
+  if (picks.has(current.id)) toast('เลือก "' + current.name + '" แล้ว');
+});
+function renderPicks() {
+  $('picksCount').textContent = picks.size;
+  $('picksBtn').classList.toggle('d-none', !picks.size);
+  const list = games.filter(g => picks.has(g.id));
+  $('picksList').innerHTML = list.map(g => `<li class="list-group-item d-flex justify-content-between"><span>${esc(g.name)}</span><span class="text-muted small">${esc(g.players)}</span></li>`).join('');
+}
+$('picksBtn').addEventListener('click', () => picksModal.show());
+$('clearPicks').addEventListener('click', () => { picks.clear(); renderPicks(); render(); picksModal.hide(); });
+
+/* ---------- Login / Admin ---------- */
+const showShop = () => { $('admin').classList.add('d-none'); $('shop').classList.remove('d-none'); $('picksBtn').classList.toggle('d-none', !picks.size); };
+const showAdmin = () => { $('shop').classList.add('d-none'); $('picksBtn').classList.add('d-none'); $('admin').classList.remove('d-none'); renderAdmin(); };
+
+$('keyBtn').addEventListener('click', () => {
+  if (token) return showAdmin();
+  $('lErr').classList.add('d-none'); $('lPass').value = ''; loginModal.show();
+  $('loginModal').addEventListener('shown.bs.modal', () => $('lUser').focus(), { once: true });
+});
+async function doLogin() {
+  $('lBtn').disabled = true;
+  try {
+    const d = await post({ action: 'login', username: $('lUser').value.trim(), password: $('lPass').value });
+    if (d.ok) { setToken(d.token); loginModal.hide(); showAdmin(); }
+    else { $('lErr').textContent = 'Username หรือ Password ไม่ถูกต้อง'; $('lErr').classList.remove('d-none'); }
+  } catch (e) { $('lErr').textContent = 'เชื่อมต่อไม่ได้'; $('lErr').classList.remove('d-none'); }
+  $('lBtn').disabled = false;
+}
+$('lBtn').addEventListener('click', doLogin);
+$('lPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+$('backBtn').addEventListener('click', showShop);
+$('logoutBtn').addEventListener('click', async () => { const t = token; setToken(''); showShop(); try { await post({ action: 'logout', token: t }); } catch (e) {} });
+
+function renderAdmin() {
+  $('adminRows').innerHTML = games.map(g => `
+    <tr data-id="${esc(g.id)}">
+      <td class="text-muted small">${esc(g.id)}</td>
+      <td class="fw-semibold">${esc(g.name)}</td>
+      <td class="d-none d-md-table-cell">${esc(g.category)}</td>
+      <td class="d-none d-md-table-cell">${esc(g.players)}</td>
+      <td><button class="btn btn-sm ${g.status === 'ว่าง' ? 'btn-success' : 'btn-warning'}" data-act="toggle">${esc(g.status)}</button></td>
+      <td class="text-end text-nowrap">
+        <button class="btn btn-sm btn-outline-primary" data-act="edit"><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-sm btn-outline-danger" data-act="del"><i class="bi bi-trash"></i></button>
+      </td></tr>`).join('');
+}
+$('adminRows').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const g = games.find(x => x.id === b.closest('tr').dataset.id); if (!g) return;
+  if (b.dataset.act === 'edit') return openEdit(g);
+  if (b.dataset.act === 'del') {
+    if (!confirm('ลบ "' + g.name + '" ?')) return;
+    const d = await post({ action: 'delete', token, id: g.id });
+    if (d.ok) { picks.delete(g.id); toast('ลบแล้ว'); load(); renderPicks(); }
+  }
+  if (b.dataset.act === 'toggle') {
+    b.disabled = true;
+    const status = g.status === 'ว่าง' ? 'กำลังเล่น' : 'ว่าง';
+    const d = await post({ action: 'setStatus', token, id: g.id, status });
+    if (d.ok) { g.status = status; if (status !== 'ว่าง') picks.delete(g.id); renderPicks(); }
+    renderAdmin();
+  }
+});
+
+function openEdit(g) {
+  g = g || {};
+  $('eTitle').textContent = g.id ? 'แก้ไขเกม ' + g.id : 'เพิ่มเกมใหม่';
+  $('eId').value = g.id || ''; $('eName').value = g.name || ''; $('eCat').value = g.category || '';
+  $('ePlayers').value = g.players || ''; $('eImage').value = g.image || '';
+  $('eStatus').value = g.status || 'ว่าง'; $('eDesc').value = g.description || '';
+  editModal.show();
+}
+$('addBtn').addEventListener('click', () => openEdit());
+$('saveBtn').addEventListener('click', async () => {
+  const game = { id: $('eId').value, name: $('eName').value, category: $('eCat').value.trim(), players: $('ePlayers').value.trim(),
+                 image: $('eImage').value.trim(), status: $('eStatus').value, description: $('eDesc').value.trim() };
+  if (!game.name.trim()) return toast('กรุณากรอกชื่อเกม');
+  $('saveBtn').disabled = true;
+  const d = await post({ action: 'save', token, game });
+  $('saveBtn').disabled = false;
+  if (d.ok) { editModal.hide(); toast('บันทึกแล้ว'); load(); }
+  else toast('บันทึกไม่สำเร็จ');
+});
+
+if (API_URL.startsWith('PASTE')) {
+  $('loading').classList.add('d-none');
+  $('error').textContent = 'ยังไม่ได้ตั้งค่า API_URL ในไฟล์ index.html (ดู README)';
+  $('error').classList.remove('d-none');
+} else load();
+</script>
+</body>
+</html>
