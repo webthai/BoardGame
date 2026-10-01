@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knight Rescue</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  html,body{height:100%;margin:0;overflow:hidden;background:#1b2340;font-family:system-ui,sans-serif}
+  #c{position:fixed;inset:0;display:block}
+  .hud{position:fixed;z-index:5}
+  #top{top:10px;left:50%;transform:translateX(-50%);text-align:center;background:rgba(20,25,50,.85);color:#fff;border-radius:14px;padding:8px 16px;min-width:230px}
+  #dice{font-size:2.2rem;font-weight:700;line-height:1}
+  #side{top:10px;left:10px;width:190px}
+  #cam{top:10px;right:10px}
+  #setup,#win{position:fixed;inset:0;z-index:10;background:rgba(10,14,35,.88);display:flex;align-items:center;justify-content:center;padding:12px}
+  .dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="top" class="hud d-none">
+  <div id="turn" class="fw-semibold"></div>
+  <div id="dice">-</div>
+  <button id="rollBtn" class="btn btn-warning btn-sm mt-1 px-4">ทอยลูกเต๋า</button>
+</div>
+<div id="side" class="hud d-none"><ul id="plist" class="list-group list-group-flush small"></ul></div>
+<button id="cam" class="hud btn btn-light btn-sm d-none">มองทั้งกระดาน</button>
+
+<div id="setup">
+  <div class="card shadow" style="max-width:420px;width:100%">
+    <div class="card-body">
+      <h4 class="card-title mb-1">Knight Rescue</h4>
+      <p class="text-muted small">มหาสงครามอัศวินช่วยเจ้าหญิง · บอร์ด 100 ช่อง</p>
+      <div id="rows"></div>
+      <button id="startBtn" class="btn btn-primary w-100 mt-2">เริ่มเกม</button>
+    </div>
+  </div>
+</div>
+<div id="win" class="d-none">
+  <div class="card text-center p-4" style="max-width:420px">
+    <h3>ยินดีด้วย!</h3>
+    <p id="winMsg"></p>
+    <button class="btn btn-primary" onclick="location.reload()">กลับสู่หน้าหลัก</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ===== Knight Rescue — รอบที่ 1: กระดาน 3D + อัศวิน + ทอยเต๋า + เดิน (เล่นในเครื่องเดียว 4 คน) =====
+   ออกแบบเผื่อออนไลน์: ทุกการกระทำผ่าน dispatch(action) และสถานะทั้งหมดอยู่ใน S (JSON ล้วน ส่ง/ซิงก์ได้) */
+const SIZE = 100;
+const COLORS = { 'แดง':0xd33a3a, 'น้ำเงิน':0x3a6fd3, 'เขียว':0x3fae4f, 'เหลือง':0xe6c229 };
+const CN = Object.keys(COLORS);
+const OFF = [[-.4,-.4],[.4,-.4],[-.4,.4],[.4,.4]];
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ---------- Scene ---------- */
+const renderer = new THREE.WebGLRenderer({ canvas:$('c'), antialias:true });
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x8fc8ff);
+const cam = new THREE.PerspectiveCamera(50, 1, .1, 200);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x6a8a5a, .9));
+const sun = new THREE.DirectionalLight(0xffffff, .6); sun.position.set(10,20,8); scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(80,80), new THREE.MeshLambertMaterial({ color:0x5aa65a }));
+ground.rotation.x = -Math.PI/2; ground.position.y = -.25; scene.add(ground);
+
+function tilePos(n){ const i = Math.max(n,1)-1, r = Math.floor(i/10), c = r%2 ? 9-i%10 : i%10; return new THREE.Vector3(c*2-9, 0, r*2-9); }
+for (let n=1; n<=SIZE; n++){
+  const col = n===SIZE ? 0xff7aa8 : n%10===0 ? 0xffc83d : n%2 ? 0xf2e7c9 : 0xd8c999;
+  const t = new THREE.Mesh(new THREE.BoxGeometry(1.8,.4,1.8), new THREE.MeshLambertMaterial({ color:col }));
+  t.position.copy(tilePos(n)); scene.add(t);
+}
+
+/* ---------- Knight (สไตล์บล็อก ปรับสี/ชิ้นส่วนได้ในรอบถัดไป) ---------- */
+function makeKnight(color){
+  const g = new THREE.Group();
+  const add = (w,h,d,x,y,z,c) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({ color:c })); m.position.set(x,y,z); g.add(m); };
+  add(.3,.5,.3,-.18,.25,0,0x555b6e); add(.3,.5,.3,.18,.25,0,0x555b6e);   // ขา
+  add(.8,.8,.4,0,.9,0,color);                                          // ลำตัว (เกราะ)
+  add(.25,.7,.25,-.55,.95,0,0xcfd6e0); add(.25,.7,.25,.55,.95,0,0xcfd6e0); // แขน
+  add(.5,.5,.5,0,1.55,0,0xffd2a8);                                     // หัว
+  add(.58,.28,.58,0,1.8,0,0xcfd6e0);                                   // หมวกเหล็ก
+  add(.1,.3,.34,0,2.05,0,color);                                       // ขนนกบนหมวก
+  g.scale.setScalar(.8); return g;
+}
+
+/* ---------- State & Actions ---------- */
+let S = null;
+async function dispatch(a){
+  if (a.type !== 'roll') return;
+  const p = S.players[S.turn], from = p.pos;
+  p.pos = Math.min(SIZE, from + a.value);
+  $('dice').textContent = a.value;
+  for (let n = from+1; n <= p.pos; n++){ place(p, n); await sleep(300); }
+  if (p.pos >= SIZE){ S.over = true; $('winMsg').textContent = `อัศวิน ${p.name} สามารถบุกไปช่วยเจ้าหญิงจากมังกรยักษ์ได้สำเร็จ!`; $('win').classList.remove('d-none'); return; }
+  S.turn = (S.turn + 1) % S.players.length; hud();
+}
+function place(p, n){
+  const t = tilePos(n); t.x += OFF[p.i][0]; t.z += OFF[p.i][1];
+  p.mesh.rotation.y = Math.atan2(t.x - p.target.x, t.z - p.target.z);
+  p.target.copy(t); p.hop = 1;
+}
+function hud(){
+  const p = S.players[S.turn];
+  $('turn').innerHTML = `<span class="dot" style="background:#${COLORS[p.color].toString(16).padStart(6,'0')}"></span>ตาของ ${p.name}`;
+  $('plist').innerHTML = S.players.map((q,k) => `<li class="list-group-item py-1 ${k===S.turn?'fw-bold bg-warning-subtle':''}">${q.name} · ช่อง ${q.pos} · ♥${q.hp}</li>`).join('');
+}
+
+/* ---------- Setup ---------- */
+$('rows').innerHTML = [0,1,2,3].map(i => `
+  <div class="input-group mb-2">
+    <input class="form-control" id="n${i}" value="อัศวิน ${i+1}" maxlength="14">
+    <select class="form-select" id="c${i}" style="max-width:110px">${CN.map((c,k) => `<option ${k===i?'selected':''}>${c}</option>`).join('')}</select>
+  </div>`).join('');
+
+$('startBtn').onclick = () => {
+  S = { turn:0, over:false, busy:false, players:[0,1,2,3].map(i => ({ i, name:$('n'+i).value.trim() || 'อัศวิน '+(i+1), color:$('c'+i).value, pos:0, hp:4 })) };
+  S.players.forEach(p => {
+    p.mesh = makeKnight(COLORS[p.color]); p.target = new THREE.Vector3(); p.hop = 0;
+    const t = tilePos(1); p.target.set(t.x + OFF[p.i][0], 0, t.z + OFF[p.i][1]);
+    p.mesh.position.set(p.target.x, .2, p.target.z); scene.add(p.mesh);
+  });
+  $('setup').classList.add('d-none');
+  ['top','side','cam'].forEach(id => $(id).classList.remove('d-none'));
+  hud();
+};
+$('rollBtn').onclick = async () => {
+  if (!S || S.busy || S.over) return;
+  S.busy = true; $('rollBtn').disabled = true;
+  await dispatch({ type:'roll', value:1 + Math.floor(Math.random()*6) });
+  S.busy = false; $('rollBtn').disabled = false;
+};
+let overview = false;
+$('cam').onclick = () => { overview = !overview; $('cam').textContent = overview ? 'ตามอัศวิน' : 'มองทั้งกระดาน'; };
+
+/* ---------- Render loop ---------- */
+function resize(){ renderer.setSize(innerWidth, innerHeight); cam.aspect = innerWidth/innerHeight; cam.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+const look = new THREE.Vector3(), want = new THREE.Vector3(0,26,20);
+cam.position.set(0,26,20); cam.lookAt(0,0,0);
+(function loop(){
+  requestAnimationFrame(loop);
+  if (S) {
+    S.players.forEach(p => {
+      p.mesh.position.x += (p.target.x - p.mesh.position.x) * .2;
+      p.mesh.position.z += (p.target.z - p.mesh.position.z) * .2;
+      p.hop = Math.max(0, p.hop - .06);
+      p.mesh.position.y = .2 + Math.sin(p.hop * Math.PI) * .6;
+    });
+    const f = S.players[S.turn].mesh.position;
+    if (overview) { look.lerp(new THREE.Vector3(0,0,0), .08); want.set(0,26,20); }
+    else { look.lerp(f, .08); want.set(f.x, 8, f.z + 8); }
+    cam.position.lerp(want, .06); cam.lookAt(look);
+  }
+  renderer.render(scene, cam);
+})();
+</script>
+</body>
+</html>

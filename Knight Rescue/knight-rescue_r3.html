@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knight Rescue</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  html,body{height:100%;margin:0;overflow:hidden;background:#1b2340;font-family:system-ui,sans-serif}
+  #c{position:fixed;inset:0;display:block}
+  .hud{position:fixed;z-index:5}
+  #top{top:10px;left:50%;transform:translateX(-50%);text-align:center;background:rgba(20,25,50,.85);color:#fff;border-radius:14px;padding:8px 16px;min-width:230px;max-width:92vw}
+  #dice{font-size:2.2rem;font-weight:700;line-height:1}
+  #side{top:10px;left:10px;width:210px}
+  #cam{top:10px;right:10px}
+  #msg{bottom:14px;left:50%;transform:translateX(-50%);background:rgba(20,25,50,.88);color:#fff;border-radius:12px;padding:8px 16px;max-width:90vw;text-align:center}
+  #legend{bottom:10px;left:10px;background:rgba(255,255,255,.85);border-radius:10px;padding:6px 10px;font-size:.75rem}
+  #setup,#win,#order{position:fixed;inset:0;z-index:10;background:rgba(10,14,35,.88);display:flex;align-items:center;justify-content:center;padding:12px}
+  .dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="top" class="hud d-none">
+  <div id="turn" class="fw-semibold"></div>
+  <div id="dice">-</div>
+  <div id="inv" class="d-flex flex-wrap justify-content-center gap-1 my-1"></div>
+  <button id="rollBtn" class="btn btn-warning btn-sm px-4">ทอยลูกเต๋า</button>
+</div>
+<div id="side" class="hud d-none"><ul id="plist" class="list-group list-group-flush small"></ul></div>
+<button id="cam" class="hud btn btn-light btn-sm d-none">มองทั้งกระดาน</button>
+<div id="msg" class="hud d-none"></div>
+<div id="legend" class="hud d-none"></div>
+
+<div id="setup">
+  <div class="card shadow" style="max-width:440px;width:100%">
+    <div class="card-body">
+      <h4 class="card-title mb-1">Knight Rescue</h4>
+      <p class="text-muted small">มหาสงครามอัศวินช่วยเจ้าหญิง · บอร์ด 100 ช่อง · สีเกราะ = สายอาชีพ</p>
+      <div id="rows"></div>
+      <div id="roleHint" class="small text-muted"></div>
+      <button id="startBtn" class="btn btn-primary w-100 mt-2">เริ่มเกม</button>
+    </div>
+  </div>
+</div>
+<div id="order" class="d-none">
+  <div class="card shadow" style="max-width:380px;width:100%"><div class="card-body">
+    <h5>ทอยเต๋าวัดดวง</h5><p class="text-muted small">แต้มมากเล่นก่อน</p>
+    <div id="orderBox"></div><div id="orderRes" class="fw-semibold mt-2"></div>
+  </div></div>
+</div>
+<div id="win" class="d-none">
+  <div class="card text-center p-4" style="max-width:420px">
+    <h3>ยินดีด้วย!</h3>
+    <p id="winMsg"></p>
+    <button class="btn btn-primary" onclick="location.reload()">กลับสู่หน้าหลัก</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ===== Knight Rescue — รอบที่ 3: สายอาชีพ 4 แบบ + การ์ดไอเทม + กระเป๋า =====
+   หลักการ: สถานะทั้งหมดอยู่ใน S (JSON) · ทุกการกระทำผ่าน dispatch(action) · ค่าสุ่มส่งมาใน action (value, r, q, k) เพื่อซิงก์ออนไลน์ได้
+   แผนที่สร้างจาก S.seed · รอบ 5 จะย้ายแผนที่/ไอเทมไปอ่านจาก Sheet "MapConfig"/"ItemCards" */
+const SIZE = 100, MAX_ITEMS = 3;
+const COLORS = { 'แดง':0xd33a3a, 'น้ำเงิน':0x3a6fd3, 'เขียว':0x3fae4f, 'เหลือง':0xe6c229 };
+const CN = Object.keys(COLORS);
+const ROLES = { 'แดง':{n:'สายถึก',d:'HP เริ่มต้น 5'}, 'น้ำเงิน':{n:'สายม้า',d:'ตกช่องม้าวิ่งเพิ่ม +3'}, 'เขียว':{n:'สายมิตร NPC',d:'ช่อง NPC ได้ผลดีเสมอ'}, 'เหลือง':{n:'สายดวงดี',d:'ทอยได้เลขคู่ 20% ฟื้น HP 1'} };
+const ITEMS = {
+  IT001:{n:'โล่ศักดิ์สิทธิ์', e:'BlockDanger', d:'กันความเสียหายจากช่องอันตราย 1 ครั้ง'},
+  IT002:{n:'แครอทวิเศษ',      e:'BoostWarp',   d:'ทอยครั้งถัดไปเดินเพิ่ม +3 ช่อง'},
+  IT003:{n:'ยาเพิ่มพลัง',      e:'FullHeal',    d:'ฟื้น HP เต็ม'},
+  IT004:{n:'เต๋าทอง',         e:'ForceSix',    d:'ทอยครั้งถัดไปได้ 6 แน่นอน'}
+};
+const ITEM_IDS = Object.keys(ITEMS);
+const OFF = [[-.4,-.4],[.4,-.4],[-.4,.4],[.4,.4]];
+const TYPES = { BlackHole:{c:0x222222,n:'หลุมดำ'}, Horse:{c:0x8b5a2b,n:'ม้า'}, NPC:{c:0x3a8fe0,n:'NPC'}, Danger:{c:0xe03a3a,n:'อันตราย'}, Treasure:{c:0xb04fd8,n:'สมบัติ'} };
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const hex = c => '#' + c.toString(16).padStart(6,'0');
+const say = t => { $('msg').textContent = t; $('msg').classList.toggle('d-none', !t); };
+
+/* ---------- Scene ---------- */
+const renderer = new THREE.WebGLRenderer({ canvas:$('c'), antialias:true });
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x8fc8ff);
+const cam = new THREE.PerspectiveCamera(50, 1, .1, 200);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x6a8a5a, .9));
+const sun = new THREE.DirectionalLight(0xffffff, .6); sun.position.set(10,20,8); scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(80,80), new THREE.MeshLambertMaterial({ color:0x5aa65a }));
+ground.rotation.x = -Math.PI/2; ground.position.y = -.25; scene.add(ground);
+
+function tilePos(n){ const i = Math.max(n,1)-1, r = Math.floor(i/10), c = r%2 ? 9-i%10 : i%10; return new THREE.Vector3(c*2-9, 0, r*2-9); }
+for (let n=1; n<=SIZE; n++){
+  const col = n===SIZE ? 0xff7aa8 : n%10===0 ? 0xffc83d : n%2 ? 0xf2e7c9 : 0xd8c999;
+  const t = new THREE.Mesh(new THREE.BoxGeometry(1.8,.4,1.8), new THREE.MeshLambertMaterial({ color:col }));
+  t.position.copy(tilePos(n)); scene.add(t);
+}
+
+/* ---------- แผนที่เอฟเฟกต์ (สุ่มจาก seed) ---------- */
+function rng(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a>>>15, 1 | a); t = t + Math.imul(t ^ t>>>7, 61 | t) ^ t; return ((t ^ t>>>14) >>> 0) / 4294967296; }; }
+function genMap(seed){
+  const r = rng(seed), m = {};
+  for (let n=2; n<SIZE; n++){
+    if (n % 10 === 0) continue;                       // ช่อง Checkpoint ว่างเสมอ
+    const x = r(), ty = x<.05 ? 'BlackHole' : x<.12 ? 'Horse' : x<.22 ? 'NPC' : x<.34 ? 'Danger' : x<.40 ? 'Treasure' : null;
+    if (ty) m[n] = { type:ty, value: ty==='Horse' ? Math.min(SIZE-1, n + 4 + Math.floor(r()*6)) : 0 };
+  }
+  return m;
+}
+function drawMarkers(){
+  Object.entries(S.map).forEach(([n,t]) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,.12,20), new THREE.MeshLambertMaterial({ color:TYPES[t.type].c }));
+    m.position.copy(tilePos(+n)); m.position.y = .26; scene.add(m);
+  });
+  $('legend').innerHTML = Object.values(TYPES).map(t => `<span class="dot" style="background:${hex(t.c)}"></span>${t.n}`).join(' &nbsp; ') + ' &nbsp; <span class="dot" style="background:#ffc83d"></span>จุดพัก';
+}
+
+/* ---------- Knight ---------- */
+function makeKnight(color){
+  const g = new THREE.Group();
+  const add = (w,h,d,x,y,z,c) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({ color:c })); m.position.set(x,y,z); g.add(m); };
+  add(.3,.5,.3,-.18,.25,0,0x555b6e); add(.3,.5,.3,.18,.25,0,0x555b6e);   // ขา
+  add(.8,.8,.4,0,.9,0,color);                                          // ลำตัว (เกราะ)
+  add(.25,.7,.25,-.55,.95,0,0xcfd6e0); add(.25,.7,.25,.55,.95,0,0xcfd6e0); // แขน
+  add(.5,.5,.5,0,1.55,0,0xffd2a8);                                     // หัว
+  add(.58,.28,.58,0,1.8,0,0xcfd6e0);                                   // หมวกเหล็ก
+  add(.1,.3,.34,0,2.05,0,color);                                       // ขนนกบนหมวก
+  g.scale.setScalar(.8); return g;
+}
+
+/* ---------- State & Actions ---------- */
+let S = null;
+function place(p, n){
+  const t = tilePos(n); t.x += OFF[p.i][0]; t.z += OFF[p.i][1];
+  p.mesh.rotation.y = Math.atan2(t.x - p.target.x, t.z - p.target.z);
+  p.target.copy(t); p.hop = 1;
+}
+async function walk(p, to){                       // เดินทีละช่อง (ไปหน้า/ถอยหลัง)
+  const d = to >= p.pos ? 1 : -1;
+  while (p.pos !== to){ p.pos += d; place(p, p.pos); hud(); await sleep(300); }
+}
+async function jump(p, to){ p.pos = to; place(p, to); hud(); await sleep(800); }
+function won(p){
+  if (p.pos < SIZE) return false;
+  S.over = true; $('winMsg').textContent = `อัศวิน ${p.name} สามารถบุกไปช่วยเจ้าหญิงจากมังกรยักษ์ได้สำเร็จ!`; $('win').classList.remove('d-none'); return true;
+}
+function nextTurn(){
+  const n = S.players.length;
+  S.turn = (S.turn + 1) % n;
+  while (S.players[S.turn].freeze > 0){ const q = S.players[S.turn]; q.freeze--; say(`${q.name} ติดหลุมดำ ข้ามตานี้`); S.turn = (S.turn + 1) % n; }
+}
+async function dispatch(a){
+  const p = S.players[S.turn];
+  if (a.type === 'useItem'){                      // ใช้ไอเทมก่อนทอย (ไม่เสียตา)
+    const k = p.items.indexOf(a.id); if (k < 0) return;
+    p.items.splice(k, 1); const e = ITEMS[a.id].e;
+    if (e === 'BlockDanger') p.shield = true;
+    if (e === 'BoostWarp') p.boost = 3;
+    if (e === 'FullHeal') p.hp = p.maxHp;
+    if (e === 'ForceSix') p.six = true;
+    say(`${p.name} ใช้ ${ITEMS[a.id].n}`); hud(); return;
+  }
+  if (a.type !== 'roll') return;
+  let extra = false;
+  const v = p.six ? 6 : a.value, steps = v + (p.boost || 0);
+  p.six = false; p.boost = 0;
+  $('dice').textContent = steps > v ? `${v}+${steps - v}` : v; say('');
+  await walk(p, Math.min(SIZE, p.pos + steps));
+  if (!won(p)){
+    const t = S.map[p.pos];
+    if (t){
+      if (t.type === 'BlackHole'){ p.freeze = 1; say('หลุมดำ! ต้องข้ามตาถัดไป'); await sleep(900); }
+      if (t.type === 'Horse'){
+        const to = Math.min(SIZE - 1, t.value + (p.color === 'น้ำเงิน' ? 3 : 0));      // สายม้า +3
+        say(`ม้าศึก! วิ่งไปช่อง ${to}`); await sleep(500); await jump(p, to);
+      }
+      if (t.type === 'NPC'){
+        if (a.r < .5 || p.color === 'เขียว'){ extra = true; say('NPC ใจดี! ได้ทอยเต๋าฟรีอีก 1 ครั้ง'); await sleep(900); }   // สายเขียว: ดีเสมอ
+        else { say(`NPC ผลักถอยหลัง ${v} ช่อง`); await sleep(500); await walk(p, Math.max(1, p.pos - v)); }
+      }
+      if (t.type === 'Danger'){
+        if (p.shield){ p.shield = false; say('โล่ศักดิ์สิทธิ์กันอันตรายไว้ได้!'); await sleep(900); }
+        else {
+          p.hp--; say('เจออันตราย! เสียพลังชีวิต 1 ดวง'); hud(); await sleep(900);
+          if (p.hp <= 0){
+            const cp = Math.floor(p.pos / 10) * 10;             // จุดพักล่าสุด
+            say(`พลังชีวิตหมด! กลับไปจุดพักช่อง ${cp} และฟื้น HP`);
+            p.hp = p.maxHp; await jump(p, cp);
+          }
+        }
+      }
+      if (t.type === 'Treasure'){
+        if (p.items.length >= MAX_ITEMS) say('พบหีบสมบัติ แต่กระเป๋าเต็ม!');
+        else { const id = ITEM_IDS[Math.floor(a.k * ITEM_IDS.length)]; p.items.push(id); say(`ได้รับ ${ITEMS[id].n}!`); }
+        await sleep(900);
+      }
+    }
+    if (p.color === 'เหลือง' && v % 2 === 0 && a.q < .2 && p.hp < p.maxHp){ p.hp++; say('ดวงดี! ฟื้นพลังชีวิต 1 ดวง'); hud(); await sleep(800); }   // สายเหลือง
+  }
+  if (S.over) return;
+  if (!extra) nextTurn();
+  hud();
+}
+function hud(){
+  const p = S.players[S.turn];
+  $('turn').innerHTML = `<span class="dot" style="background:${hex(COLORS[p.color])}"></span>ตาของ ${p.name} <small class="text-warning">${ROLES[p.color].n}</small>`;
+  $('inv').innerHTML = p.items.map(id => `<button class="btn btn-outline-light btn-sm" data-id="${id}" title="${ITEMS[id].d}">${ITEMS[id].n}</button>`).join('') || '<small class="text-secondary">ไม่มีไอเทม</small>';
+  $('plist').innerHTML = S.players.map((q,k) => `<li class="list-group-item py-1 ${k===S.turn?'fw-bold bg-warning-subtle':''}">${q.name} · ช่อง ${q.pos} · ${'♥'.repeat(q.hp)}${q.freeze?' ⏸':''}${q.shield?' 🛡':''}${q.boost?' 🥕':''}${q.six?' ⚀6':''} · 🎒${q.items.length}</li>`).join('');
+}
+$('inv').onclick = async e => {
+  const b = e.target.closest('button'); if (!b || !S || S.busy || S.over) return;
+  S.busy = true; await dispatch({ type:'useItem', id:b.dataset.id }); S.busy = false;
+};
+
+/* ---------- Setup + ทอยลำดับเทิร์น ---------- */
+$('rows').innerHTML = [0,1,2,3].map(i => `
+  <div class="input-group mb-2">
+    <input class="form-control" id="n${i}" value="อัศวิน ${i+1}" maxlength="14">
+    <select class="form-select" id="c${i}" style="max-width:150px">${CN.map((c,k) => `<option value="${c}" ${k===i?'selected':''}>${c} · ${ROLES[c].n}</option>`).join('')}</select>
+  </div>`).join('');
+$('roleHint').innerHTML = CN.map(c => `<span class="dot" style="background:${hex(COLORS[c])}"></span>${ROLES[c].n}: ${ROLES[c].d}`).join('<br>');
+
+$('startBtn').onclick = () => {
+  S = { turn:0, over:false, busy:false, seed:(Math.random()*1e9)|0,
+        players:[0,1,2,3].map(i => { const color = $('c'+i).value, hp = color === 'แดง' ? 5 : 4;   // สายถึก HP 5
+          return { i, name:$('n'+i).value.trim() || 'อัศวิน '+(i+1), color, pos:0, hp, maxHp:hp, freeze:0, items:[], shield:false, boost:0, six:false }; }) };
+  S.map = genMap(S.seed); drawMarkers();
+  S.players.forEach(p => {
+    p.mesh = makeKnight(COLORS[p.color]); p.target = new THREE.Vector3(); p.hop = 0;
+    const t = tilePos(1); p.target.set(t.x + OFF[p.i][0], 0, t.z + OFF[p.i][1]);
+    p.mesh.position.set(p.target.x, .2, p.target.z); scene.add(p.mesh);
+  });
+  $('setup').classList.add('d-none'); showOrder();
+};
+function showOrder(){
+  $('orderBox').innerHTML = S.players.map(p => `<div class="d-flex justify-content-between align-items-center mb-2"><span><span class="dot" style="background:${hex(COLORS[p.color])}"></span>${p.name}</span><span><b id="o${p.i}" class="me-2"></b><button class="btn btn-warning btn-sm" data-i="${p.i}">ทอย</button></span></div>`).join('');
+  $('order').classList.remove('d-none');
+  $('orderBox').onclick = async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const p = S.players.find(x => x.i == b.dataset.i), v = 1 + Math.floor(Math.random()*6);
+    p.o = v + Math.random()/10; b.disabled = true; $('o'+p.i).textContent = v;
+    if (S.players.every(x => x.o)){
+      S.players.sort((a,b) => b.o - a.o);                         // แต้มมาก → เล่นก่อน
+      $('orderRes').textContent = 'ลำดับ: ' + S.players.map(x => x.name).join(' → ');
+      await sleep(1800); $('order').classList.add('d-none');
+      ['top','side','cam','legend'].forEach(id => $(id).classList.remove('d-none')); hud();
+    }
+  };
+}
+$('rollBtn').onclick = async () => {
+  if (!S || S.busy || S.over) return;
+  S.busy = true; $('rollBtn').disabled = true;
+  await dispatch({ type:'roll', value:1 + Math.floor(Math.random()*6), r:Math.random(), q:Math.random(), k:Math.random() });
+  S.busy = false; $('rollBtn').disabled = false;
+};
+let overview = false;
+$('cam').onclick = () => { overview = !overview; $('cam').textContent = overview ? 'ตามอัศวิน' : 'มองทั้งกระดาน'; };
+
+/* ---------- Render loop ---------- */
+function resize(){ renderer.setSize(innerWidth, innerHeight); cam.aspect = innerWidth/innerHeight; cam.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+const look = new THREE.Vector3(), want = new THREE.Vector3(0,26,20);
+cam.position.set(0,26,20); cam.lookAt(0,0,0);
+(function loop(){
+  requestAnimationFrame(loop);
+  if (S) {
+    S.players.forEach(p => {
+      p.mesh.position.x += (p.target.x - p.mesh.position.x) * .2;
+      p.mesh.position.z += (p.target.z - p.mesh.position.z) * .2;
+      p.hop = Math.max(0, p.hop - .06);
+      p.mesh.position.y = .2 + Math.sin(p.hop * Math.PI) * .6;
+    });
+    const f = S.players[S.turn].mesh.position;
+    if (overview) { look.lerp(new THREE.Vector3(0,0,0), .08); want.set(0,26,20); }
+    else { look.lerp(f, .08); want.set(f.x, 8, f.z + 8); }
+    cam.position.lerp(want, .06); cam.lookAt(look);
+  }
+  renderer.render(scene, cam);
+})();
+</script>
+</body>
+</html>
