@@ -13,7 +13,6 @@
   #dice{font-size:2.2rem;font-weight:700;line-height:1}
   #side{top:10px;left:10px;width:210px}
   #cam{top:10px;right:10px}
-  #mute{top:46px;right:10px}
   #msg{bottom:14px;left:50%;transform:translateX(-50%);background:rgba(20,25,50,.88);color:#fff;border-radius:12px;padding:8px 16px;max-width:90vw;text-align:center}
   #legend{bottom:10px;left:10px;background:rgba(255,255,255,.85);border-radius:10px;padding:6px 10px;font-size:.75rem}
   #setup,#win,#order,#pop,#cust,#lobby{position:fixed;inset:0;z-index:10;background:rgba(10,14,35,.88);display:flex;align-items:center;justify-content:center;padding:12px;overflow:auto}
@@ -21,8 +20,6 @@
   .dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px}
   .sw{width:30px;height:30px;padding:0;border:2px solid #ccc}
   .sw.on,.btn.on{outline:3px solid #0d6efd}
-  .cf{position:fixed;top:-30px;z-index:20;font-size:22px;pointer-events:none;animation:fall 3.2s linear forwards}
-  @keyframes fall{to{transform:translateY(112vh) rotate(540deg)}}
 </style>
 </head>
 <body>
@@ -36,7 +33,6 @@
 </div>
 <div id="side" class="hud d-none"><ul id="plist" class="list-group list-group-flush small"></ul></div>
 <button id="cam" class="hud btn btn-light btn-sm d-none">มองทั้งกระดาน</button>
-<button id="mute" class="hud btn btn-light btn-sm d-none">🔊</button>
 <div id="msg" class="hud d-none"></div>
 <div id="legend" class="hud d-none"></div>
 
@@ -45,10 +41,6 @@
     <div class="card-body">
       <h4 class="card-title mb-1">Knight Rescue</h4>
       <p class="text-muted small">มหาสงครามอัศวินช่วยเจ้าหญิง · สีเกราะ = สายอาชีพ</p>
-      <div id="rejoinBox" class="alert alert-info py-2 d-none">
-        <button id="rejoinBtn" class="btn btn-info btn-sm">กลับเข้าห้อง <b id="rejoinCode"></b></button>
-        <button id="rejoinX" class="btn btn-link btn-sm">ไม่ใช่ห้องของฉันแล้ว</button>
-      </div>
       <div class="btn-group w-100 mb-2" id="modes"></div>
       <div class="btn-group w-100 mb-3" id="sizes"></div>
       <div id="codeBox" class="mb-3 d-none"><input id="roomCode" class="form-control text-uppercase" maxlength="4" placeholder="รหัสห้อง 4 ตัวอักษร"></div>
@@ -99,12 +91,11 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-/* ===== Knight Rescue — เวอร์ชันสมบูรณ์ (รอบ 7 + แก้ replay ตอน rejoin) =====
+/* ===== Knight Rescue — รอบที่ 6: โหมดออนไลน์ (ห้อง + รหัสห้อง) =====
    หลักการ: สถานะทั้งหมดอยู่ใน S (JSON) · ทุกการกระทำเป็น action ที่ผ่านคิว Q ไปยัง dispatch/orderPhase/askDuel/askSpecial
    - เครื่องเดียว: UI → emit() → push เข้าคิวตรงๆ
    - ออนไลน์: UI → emit() → POST krAct (Apps Script ต่อท้ายล็อก) → ทุกเครื่อง poll ล็อกแล้ว push เข้าคิวตามลำดับเดียวกัน
-   ค่าสุ่มทั้งหมดอยู่ใน action (value, r, q, k, v) → ห้ามสุ่มในตรรกะเกม · เอฟเฟกต์ภาพ/เสียง (tumble, confetti, สั่นกล้อง) สุ่มได้เพราะไม่กระทบสถานะ
-   Rejoin: จำ {room, slot} ใน localStorage แล้ว replay ล็อกทั้งหมดจาก since=0 แบบเร็ว (replaying = true → sleep/เสียงถูกข้าม) */
+   ค่าสุ่มทั้งหมดอยู่ใน action (value, r, q, k, v) → ทุกเครื่องเล่นซ้ำได้ผลตรงกัน · แผนที่/ไอเทม/ขนาดบอร์ดส่งผ่าน config ของห้อง */
 const API_URL = 'https://script.google.com/macros/s/AKfycbymhw3c7sedGRkvnEnM27Gu7XPgML6HiUKq3nOrkij9iRiX6xeX1DRzy8N07DUejKiozQ/exec';
 let SIZE = 100, ZONE = 80;
 const MAX_ITEMS = 3;
@@ -120,45 +111,17 @@ let ITEMS = {                                               // ค่าสำ�
 let ITEM_IDS = Object.keys(ITEMS);
 const OFF = [[-.4,-.4],[.4,-.4],[-.4,.4],[.4,.4]];
 const TYPES = { BlackHole:{c:0x222222,n:'หลุมดำ'}, Horse:{c:0x8b5a2b,n:'ม้า'}, NPC:{c:0x3a8fe0,n:'NPC'}, SpecialNPC:{c:0xffffff,n:'NPC พิเศษ'}, Danger:{c:0xe03a3a,n:'อันตราย'}, Treasure:{c:0xb04fd8,n:'สมบัติ'} };
-let replaying = false;                                      // true ระหว่าง replay ล็อก (rejoin) → ข้ามการหน่วง/เสียง
 const $ = id => document.getElementById(id);
-const sleep = ms => new Promise(r => setTimeout(r, replaying ? 0 : ms));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 const hex = c => '#' + c.toString(16).padStart(6,'0');
 const d6 = () => 1 + Math.floor(Math.random() * 6);
-const rnd = () => Math.round(Math.random() * 1000) / 1000;
+const rnd = () => Math.round(Math.random() * 1000) / 1000;   // ปัดทศนิยมให้ action สั้น
 const say = t => { $('msg').textContent = t; $('msg').classList.toggle('d-none', !t); };
-
-/* ---------- เสียง (WebAudio สังเคราะห์ ไม่ต้องมีไฟล์) ---------- */
-let muted = false, AC = null;
-function beep(f, d = .12, type = 'square', vol = .05, slide = 0){
-  if (muted || replaying) return;
-  try {
-    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
-    const o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime;
-    o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.linearRampToValueAtTime(f + slide, t + d);
-    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + d);
-    o.connect(g); g.connect(AC.destination); o.start(); o.stop(t + d);
-  } catch (e) {}
-}
-const SFX = {
-  step:() => beep(520, .06, 'square', .025), roll:() => beep(300, .1, 'triangle', .06, 200),
-  hurt:() => beep(170, .3, 'sawtooth', .07, -90), good:() => { beep(660, .1); setTimeout(() => beep(880, .15), 110); },
-  fire:() => beep(110, .6, 'sawtooth', .08, -60), warp:() => beep(400, .25, 'sine', .06, 500),
-  win:() => [523,659,784,1047].forEach((f,k) => setTimeout(() => beep(f, .25, 'triangle', .07), k*160))
-};
-$('mute').onclick = () => { muted = !muted; $('mute').textContent = muted ? '🔇' : '🔊'; };
-function confetti(){
-  for (let i = 0; i < 60; i++){
-    const s = document.createElement('span'); s.className = 'cf'; s.textContent = ['🎉','🎊','⭐','👑'][i % 4];
-    s.style.left = Math.random()*100 + 'vw'; s.style.animationDelay = Math.random()*1.5 + 's'; document.body.appendChild(s);
-    setTimeout(() => s.remove(), 5000);
-  }
-}
 
 /* ---------- เชื่อมหลังบ้าน (Apps Script) ---------- */
 const apiGet = async q => (await fetch(API_URL + '?' + q)).json();
 const post = async o => { try { return await (await fetch(API_URL, { method:'POST', body:JSON.stringify(o) })).json(); } catch (e) { return { ok:false, error:'net' }; } };
-const krStatus = s => { post({ action:'krStatus', status:s }); };
+const krStatus = s => { post({ action:'krStatus', status:s }); };   // อัปเดตสถานะ ว่าง/กำลังเล่น ในแคตตาล็อก
 async function loadItems(){
   try {
     const d = await apiGet('action=kr_items');
@@ -167,26 +130,23 @@ async function loadItems(){
 }
 const itemsReady = loadItems();
 addEventListener('pagehide', () => { if (S && !S.over && (!ONLINE || ME === 0) && navigator.sendBeacon) navigator.sendBeacon(API_URL, JSON.stringify({ action:'krStatus', status:'ว่าง' })); });
-const saveRoom = r => { try { r ? localStorage.setItem('kr_room', JSON.stringify(r)) : localStorage.removeItem('kr_room'); } catch (e) {} };
-const savedRoom = () => { try { return JSON.parse(localStorage.getItem('kr_room') || 'null'); } catch (e) { return null; } };
 
 /* ---------- คิว action + ออนไลน์ ---------- */
 let S = null, ONLINE = false, ROOM = '', ME = null, seen = 0, polling = false, started = false;
-const mine = i => !ONLINE || i === ME;
+const mine = i => !ONLINE || i === ME;                       // ผู้เล่นช่องนี้คือเครื่องนี้หรือไม่
 const Q = []; let wake = null;
 const push = a => { Q.push(a); if (wake){ const w = wake; wake = null; w(); } };
-async function take(...types){
+async function take(...types){                                // รอ action ชนิดที่ต้องการจากคิว
   for (;;){
     while (Q.length){ const a = Q.shift(); if (types.includes(a.type)) return a; }
-    replaying = false;                                          // คิวหมด = ตามทันแล้ว (จบ replay)
     await new Promise(r => wake = r);
   }
 }
-async function emit(a){
+async function emit(a){                                       // UI ส่ง action: เครื่องเดียว = เข้าคิวเลย / ออนไลน์ = ส่งขึ้นเซิร์ฟเวอร์
   if (!ONLINE){ push(a); return true; }
   const d = await post({ action:'krAct', room:ROOM, idx:seen, act:a });
   await pollOnce();
-  return !!d.ok;
+  return !!d.ok;                                              // false = ชนกับเครื่องอื่น (stale) → ลองกดใหม่
 }
 async function pollOnce(){
   while (polling) await sleep(40);
@@ -197,21 +157,14 @@ async function pollLoop(){
   for (;;){
     await pollOnce();
     const myTurn = S && S.players[S.turn] && mine(S.players[S.turn].i) && !S.busy;
-    await new Promise(r => setTimeout(r, !S ? 2000 : S.over ? 6000 : myTurn ? 4000 : 1500));
+    await sleep(!S ? 2000 : S.over ? 6000 : myTurn ? 4000 : 1500);   // ผ่อน poll ตอนเป็นตาเรา (ประหยัดโควตา Apps Script)
   }
 }
 function onPoll(d){
-  if (!d.ok){
-    if (d.error === 'no_room'){ saveRoom(null); location.reload(); return; }
-    if (!S) $('lobWait').textContent = 'เชื่อมต่อห้องไม่ได้ กำลังลองใหม่...'; return;
-  }
+  if (!d.ok){ if (!S) $('lobWait').textContent = 'เชื่อมต่อห้องไม่ได้ กำลังลองใหม่...'; return; }
   if (!S){
     renderLobby(d.players);
-    if (d.status === 'playing' && d.config && !started){
-      started = true; replaying = d.actions.length > 0;          // rejoin: มีล็อกเดิม → replay เร็ว
-      d.actions.forEach(push); seen = d.total;                    // ต้องใส่ action เข้าคิว "ก่อน" เริ่มเกม ไม่งั้น take() เห็นคิวว่างแล้วปิดโหมด replay ทันที
-      beginGame(unpackCfg(d.config), d.players); return;
-    }
+    if (d.status === 'playing' && d.config && !started){ started = true; beginGame(unpackCfg(d.config), d.players); }
   }
   d.actions.forEach(push); seen = d.total;
 }
@@ -239,43 +192,6 @@ function buildBoard(){
   }
   scene.add(im);
   ov = { cz: rows - 10, h: Math.max(26, rows * 2.1) };
-  decorate(rows); buildGoal();
-}
-
-/* ---------- ฉาก: ต้นไม้ เมฆ เจ้าหญิง + มังกร ---------- */
-const bx = (g, w,h,d, x,y,z, c) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({ color:c })); m.position.set(x,y,z); g.add(m); return m; };
-const clouds = []; let dragonHead = null;
-function decorate(rows){
-  const r = rng(SIZE * 7 + 1), tg = new THREE.BoxGeometry(.3,.8,.3), lg = new THREE.BoxGeometry(1.2,1.2,1.2);
-  const tm = new THREE.MeshLambertMaterial({ color:0x6b4a2b }), lm = new THREE.MeshLambertMaterial({ color:0x2e8b3a }), lm2 = new THREE.MeshLambertMaterial({ color:0x3fa34d });
-  const count = Math.min(140, 24 + rows * 3);
-  for (let i = 0; i < count; i++){
-    const side = r() < .5 ? -1 : 1, x = side * (8 + r() * 20), z = -12 + r() * (rows * 2 + 18), s = .8 + r() * .8;
-    const t = new THREE.Mesh(tg, tm); t.position.set(x, .15 + .4*s, z); t.scale.setScalar(s); scene.add(t);
-    const l = new THREE.Mesh(lg, r() < .5 ? lm : lm2); l.position.set(x, 1.1*s + .4, z); l.scale.setScalar(s); scene.add(l);
-  }
-  const cm = new THREE.MeshLambertMaterial({ color:0xffffff });
-  for (let i = 0; i < 9; i++){
-    const g = new THREE.Group(); [[0,0,0,3,1,1.6],[1.2,.5,0,2,.9,1.4],[-1.2,.3,.2,2,.8,1.2]].forEach(([x,y,z,w,h,d]) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), cm); m.position.set(x,y,z); g.add(m); });
-    g.position.set(-45 + r() * 90, 16 + r() * 6, -10 + r() * (rows * 2 + 20)); scene.add(g); clouds.push(g);
-  }
-}
-function buildGoal(){                                        // เจ้าหญิงกับมังกรยักษ์ที่ช่องสุดท้าย
-  const end = tilePos(SIZE);
-  const pr = new THREE.Group();
-  bx(pr,.7,.9,.5,0,.65,0,0xff8fc0); bx(pr,.5,.5,.5,0,1.35,0,0xffd2a8); bx(pr,.56,.5,.2,0,1.35,-.2,0xf2c230);
-  bx(pr,.4,.12,.4,0,1.68,0,0xf2c230); bx(pr,.2,.6,.2,-.45,.75,0,0xffd2a8); bx(pr,.2,.6,.2,.45,.75,0,0xffd2a8);
-  pr.position.set(end.x + 3, 0, end.z + 3.5); pr.scale.setScalar(1.2); pr.rotation.y = -.5; scene.add(pr);
-  const dr = new THREE.Group(), gr = 0x2e8b3a;
-  bx(dr,1.6,1.1,2.6,0,1.1,0,gr); bx(dr,1.2,.5,2.2,0,.75,.05,0xc9e265);
-  [[-.6,-.9],[.6,-.9],[-.6,.9],[.6,.9]].forEach(([x,z]) => bx(dr,.4,.7,.4,x,.35,z,0x1f6b2a));
-  bx(dr,.6,.6,1.2,0,1.8,1.4,gr); bx(dr,.5,.5,2,0,1.0,-2.2,gr);
-  [-1,1].forEach(s => { const w = bx(dr,2.2,.1,1.3,s*1.7,2.1,-.2,0xc0392b); w.rotation.z = s * .4; });
-  [-.8,0,.8].forEach(z => bx(dr,.15,.3,.2,0,1.8,z,0xf2c230));
-  dragonHead = new THREE.Group(); bx(dragonHead,.9,.7,1.1,0,0,0,gr); bx(dragonHead,.15,.15,.1,-.25,.2,.56,0xff2222); bx(dragonHead,.15,.15,.1,.25,.2,.56,0xff2222);
-  bx(dragonHead,.12,.35,.12,-.3,.5,-.1,0xf5f0dc); bx(dragonHead,.12,.35,.12,.3,.5,-.1,0xf5f0dc);
-  dragonHead.position.set(0, 2.3, 2.1); dr.add(dragonHead);
-  dr.position.set(end.x - 2.5, 0, end.z + 5); dr.scale.setScalar(1.3); dr.rotation.y = Math.PI; scene.add(dr);
 }
 
 /* ---------- แผนที่เอฟเฟกต์ (สำรองในเครื่อง: สุ่มจาก seed) ---------- */
@@ -306,7 +222,7 @@ const OPTS = { skin:{t:'ผิว', v:SKINS}, hat:{t:'หมวก', v:['หม�
 const defLook = () => ({ skin:0, hat:0, weap:0, shield:0, cape:0 });
 function makeKnight(color, L = defLook()){
   const g = new THREE.Group(), steel = 0xcfd6e0, gold = 0xf2c230, wood = 0x6b4a2b;
-  const add = (w,h,d,x,y,z,c) => bx(g,w,h,d,x,y,z,c);
+  const add = (w,h,d,x,y,z,c) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({ color:c })); m.position.set(x,y,z); g.add(m); };
   add(.3,.5,.3,-.18,.25,0,0x555b6e); add(.3,.5,.3,.18,.25,0,0x555b6e);   // ขา
   add(.8,.8,.4,0,.9,0,color);                                          // ลำตัว (เกราะ)
   add(.25,.7,.25,-.55,.95,0,steel); add(.25,.7,.25,.55,.95,0,steel);   // แขน
@@ -320,10 +236,6 @@ function makeKnight(color, L = defLook()){
   if (L.shield === 1){ add(.1,.6,.6,-.8,.95,0,color); add(.14,.22,.22,-.86,.95,0,gold); }
   if (L.cape) add(.74,.95,.07,0,.95,-.26,CAPES[L.cape]);
   g.scale.setScalar(.8); return g;
-}
-function flash(p){                                                    // อัศวินกะพริบแดงตอนเสีย HP
-  const set = h => p.mesh.traverse(o => { if (o.material && o.material.emissive) o.material.emissive.setHex(h); });
-  set(0xff2222); setTimeout(() => set(0), 350);
 }
 
 /* ---------- หน้าปรับแต่ง + พรีวิว 3D ---------- */
@@ -361,7 +273,7 @@ async function askDuel(att, def){
   const r = {};
   while (!(r.a && r.d)){
     const x = await take('duelRoll'); if (r[x.s]) continue;
-    r[x.s] = x.v; $('dv'+x.s).textContent = x.v; SFX.roll();
+    r[x.s] = x.v; $('dv'+x.s).textContent = x.v;
     const bt = $('popB').querySelector(`[data-s="${x.s}"]`); if (bt) bt.disabled = true;
   }
   await sleep(1400); hidePop(); return r;
@@ -371,11 +283,7 @@ async function askSpecial(p){
   const body = mine(p.i)
     ? others.map(({q,k}) => `<div class="d-flex justify-content-between align-items-center mb-2"><span>${who(q)} <small class="text-muted">ช่อง ${q.pos}</small></span><span><button class="btn btn-success btn-sm" data-t="${k}" data-d="1">เดินหน้า</button> <button class="btn btn-danger btn-sm" data-t="${k}" data-d="-1">ถอยหลัง</button></span></div>`).join('') + '<div class="small text-muted">เลือกแล้วระบบจะทอยเต๋าพิเศษให้</div>'
     : `<div>รอ ${p.name} เลือกอัศวินที่จะปั่นป่วน...</div>`;
-  const pick = b => {                                         // ถ้าส่งไม่สำเร็จ (ชนกับเครื่องอื่น) แสดงปุ่มให้เลือกใหม่
-    $('popB').innerHTML = 'กำลังส่ง...';
-    emit({ type:'special', t:+b.dataset.t, d:+b.dataset.d, v:d6() }).then(ok => { if (!ok) showPop('NPC พิเศษ!', body, pick); });
-  };
-  showPop('NPC พิเศษ!', body, pick);
+  showPop('NPC พิเศษ!', body, b => { $('popB').innerHTML = 'กำลังส่ง...'; emit({ type:'special', t:+b.dataset.t, d:+b.dataset.d, v:d6() }).then(ok => { if (!ok) showPop('NPC พิเศษ!', body, arguments.callee); }); });
   const c = await take('special'); hidePop(); return c;
 }
 
@@ -387,11 +295,11 @@ function place(p, n){
 }
 async function walk(p, to){
   const d = to >= p.pos ? 1 : -1;
-  while (p.pos !== to){ p.pos += d; place(p, p.pos); SFX.step(); hud(); await sleep(300); }
+  while (p.pos !== to){ p.pos += d; place(p, p.pos); hud(); await sleep(300); }
 }
-async function jump(p, to){ p.pos = to; place(p, to); SFX.warp(); hud(); await sleep(800); }
+async function jump(p, to){ p.pos = to; place(p, to); hud(); await sleep(800); }
 async function hurt(q){
-  q.hp--; SFX.hurt(); flash(q); hud(); await sleep(700);
+  q.hp--; hud(); await sleep(700);
   if (q.hp <= 0){
     const cp = Math.floor(q.pos / 10) * 10;
     say(`${q.name} พลังชีวิตหมด! กลับไปจุดพักช่อง ${cp} และฟื้น HP`);
@@ -405,25 +313,19 @@ async function duel(p){
   if (r.a > r.d){ say(`${p.name} ชนะ! ${d.name} เสีย HP 1 และกระเด็นถอยหลัง 3 ช่อง`); await sleep(800); await walk(d, Math.max(1, d.pos - 3)); await hurt(d); }
   else { say(`${d.name} ป้องกันได้! ${p.name} กระเด็นถอยหลัง 1 ช่อง`); await sleep(800); await walk(p, Math.max(1, p.pos - 1)); }
 }
-let shake = 0;
 async function dragonFire(){
-  say('🐉 มังกรพ่นไฟ! อัศวินในโซนท้ายเกมเสีย HP 1 ทุกคน'); SFX.fire(); shake = 1; await sleep(1100);
+  say('🐉 มังกรพ่นไฟ! อัศวินในโซนท้ายเกมเสีย HP 1 ทุกคน'); await sleep(1100);
   for (const q of S.players) if (q.pos >= ZONE) await hurt(q);
 }
 function won(p){
   if (p.pos < SIZE) return false;
-  S.over = true; krStatus('ว่าง'); saveRoom(null); SFX.win(); if (!replaying) confetti();
+  S.over = true; krStatus('ว่าง');
   $('winMsg').textContent = `อัศวิน ${p.name} สามารถบุกไปช่วยเจ้าหญิงจากมังกรยักษ์ได้สำเร็จ!`; $('win').classList.remove('d-none'); return true;
 }
 function nextTurn(){
   const n = S.players.length;
   S.turn = (S.turn + 1) % n;
   while (S.players[S.turn].freeze > 0){ const q = S.players[S.turn]; q.freeze--; say(`${q.name} ติดหลุมดำ ข้ามตานี้`); S.turn = (S.turn + 1) % n; }
-}
-async function tumble(v){                                     // เต๋าหมุนก่อนโชว์แต้มจริง (เอฟเฟกต์ภาพล้วน)
-  SFX.roll();
-  for (let i = 0; i < 6; i++){ $('dice').textContent = d6(); await sleep(60); }
-  $('dice').textContent = v;
 }
 async function dispatch(a){
   const p = S.players[S.turn];
@@ -434,46 +336,46 @@ async function dispatch(a){
     if (e === 'BoostWarp') p.boost = 3;
     if (e === 'FullHeal') p.hp = p.maxHp;
     if (e === 'ForceSix') p.six = true;
-    SFX.good(); say(`${p.name} ใช้ ${ITEMS[a.id].n}`); hud(); return;
+    say(`${p.name} ใช้ ${ITEMS[a.id].n}`); hud(); return;
   }
   if (a.type !== 'roll') return;
   let extra = false;
   const v = p.six ? 6 : a.value, steps = v + (p.boost || 0);
-  p.six = false; p.boost = 0; say('');
-  await tumble(steps > v ? `${v}+${steps - v}` : v);
+  p.six = false; p.boost = 0;
+  $('dice').textContent = steps > v ? `${v}+${steps - v}` : v; say('');
   if (S.dragon && v === 1) await dragonFire();
   await walk(p, Math.min(SIZE, p.pos + steps));
   if (!won(p)){
     const t = S.map[p.pos];
     if (t){
       if (t.desc){ say(t.desc); await sleep(800); }
-      if (t.type === 'BlackHole'){ p.freeze = 1; say('หลุมดำ! ต้องข้ามตาถัดไป'); SFX.hurt(); await sleep(900); }
+      if (t.type === 'BlackHole'){ p.freeze = 1; say('หลุมดำ! ต้องข้ามตาถัดไป'); await sleep(900); }
       if (t.type === 'Horse'){
         const to = Math.min(SIZE - 1, t.value + (p.color === 'น้ำเงิน' ? 3 : 0));
         say(`ม้าศึก! วิ่งไปช่อง ${to}`); await sleep(500); await jump(p, to);
       }
       if (t.type === 'NPC'){
-        if (a.r < .5 || p.color === 'เขียว'){ extra = true; say('NPC ใจดี! ได้ทอยเต๋าฟรีอีก 1 ครั้ง'); SFX.good(); await sleep(900); }
+        if (a.r < .5 || p.color === 'เขียว'){ extra = true; say('NPC ใจดี! ได้ทอยเต๋าฟรีอีก 1 ครั้ง'); await sleep(900); }
         else { say(`NPC ผลักถอยหลัง ${v} ช่อง`); await sleep(500); await walk(p, Math.max(1, p.pos - v)); }
       }
       if (t.type === 'SpecialNPC'){
         const c = await askSpecial(p), q = S.players[c.t];
-        say(`เต๋าพิเศษได้ ${c.v}! ${q.name} ${c.d > 0 ? 'เดินหน้า' : 'ถอยหลัง'} ${c.v} ช่อง`); $('dice').textContent = c.v; SFX.roll(); await sleep(900);
+        say(`เต๋าพิเศษได้ ${c.v}! ${q.name} ${c.d > 0 ? 'เดินหน้า' : 'ถอยหลัง'} ${c.v} ช่อง`); $('dice').textContent = c.v; await sleep(900);
         await walk(q, Math.max(1, Math.min(SIZE - 1, q.pos + c.d * c.v)));
       }
       if (t.type === 'Danger'){
-        if (p.shield){ p.shield = false; say('โล่ศักดิ์สิทธิ์กันอันตรายไว้ได้!'); SFX.good(); await sleep(900); }
+        if (p.shield){ p.shield = false; say('โล่ศักดิ์สิทธิ์กันอันตรายไว้ได้!'); await sleep(900); }
         else { say('เจออันตราย! เสียพลังชีวิต 1 ดวง'); await hurt(p); }
       }
       if (t.type === 'Treasure'){
         if (p.items.length >= MAX_ITEMS) say('พบหีบสมบัติ แต่กระเป๋าเต็ม!');
-        else { const id = ITEM_IDS[Math.floor(a.k * ITEM_IDS.length)]; p.items.push(id); say(`ได้รับ ${ITEMS[id].n}!`); SFX.good(); }
+        else { const id = ITEM_IDS[Math.floor(a.k * ITEM_IDS.length)]; p.items.push(id); say(`ได้รับ ${ITEMS[id].n}!`); }
         await sleep(900);
       }
     }
-    if (p.color === 'เหลือง' && v % 2 === 0 && a.q < .2 && p.hp < p.maxHp){ p.hp++; say('ดวงดี! ฟื้นพลังชีวิต 1 ดวง'); SFX.good(); hud(); await sleep(800); }
+    if (p.color === 'เหลือง' && v % 2 === 0 && a.q < .2 && p.hp < p.maxHp){ p.hp++; say('ดวงดี! ฟื้นพลังชีวิต 1 ดวง'); hud(); await sleep(800); }
     await duel(p);
-    if (!S.dragon && S.players.some(q => q.pos >= ZONE)){ S.dragon = true; say('🐉 มังกรตื่นแล้ว! ถ้าใครทอยได้ 1 มังกรจะพ่นไฟ'); SFX.fire(); shake = .6; hud(); await sleep(1500); }
+    if (!S.dragon && S.players.some(q => q.pos >= ZONE)){ S.dragon = true; say('🐉 มังกรตื่นแล้ว! ถ้าใครทอยได้ 1 มังกรจะพ่นไฟ'); hud(); await sleep(1500); }
   }
   if (S.over) return;
   if (!extra) nextTurn();
@@ -486,7 +388,7 @@ function hud(){
   $('inv').innerHTML = p.items.map(id => `<button class="btn btn-outline-light btn-sm" data-id="${id}" title="${ITEMS[id].d}" ${can ? '' : 'disabled'}>${ITEMS[id].n}</button>`).join('') || '<small class="text-secondary">ไม่มีไอเทม</small>';
   $('plist').innerHTML = S.players.map((q,k) => `<li class="list-group-item py-1 ${k===S.turn?'fw-bold bg-warning-subtle':''}">${q.name}${ONLINE && q.i === ME ? ' ★' : ''} · ช่อง ${q.pos} · ${'♥'.repeat(q.hp)}${q.freeze?' ⏸':''}${q.shield?' 🛡':''}${q.boost?' 🥕':''}${q.six?' ⚀6':''} · 🎒${q.items.length}</li>`).join('');
 }
-async function send(a){
+async function send(a){                                       // ปุ่มทอย/ใช้ไอเทม: ล็อกปุ่มจนกว่า action จะถูกประมวลผล
   if (!S || S.busy || S.over || !mine(S.players[S.turn].i)) return;
   S.busy = true; hud();
   if (!(await emit(a))){ S.busy = false; hud(); }
@@ -507,13 +409,13 @@ async function orderPhase(){
   };
   while (Object.keys(o).length < S.players.length){
     const a = await take('orderRoll'); if (o[a.i]) continue;
-    o[a.i] = a.v; $('o'+a.i).textContent = a.v; SFX.roll();
+    o[a.i] = a.v; $('o'+a.i).textContent = a.v;
     const bt = $('orderBox').querySelector(`[data-i="${a.i}"]`); if (bt) bt.disabled = true;
   }
-  S.players.sort((a,b) => (o[b.i] - o[a.i]) || (a.i - b.i));
+  S.players.sort((a,b) => (o[b.i] - o[a.i]) || (a.i - b.i));   // แต้มมาก → เล่นก่อน (เท่ากัน: เข้าห้องก่อนได้ก่อน)
   $('orderRes').textContent = 'ลำดับ: ' + S.players.map(x => x.name).join(' → ');
   await sleep(1800); $('order').classList.add('d-none');
-  ['top','side','cam','mute','legend'].forEach(id => $(id).classList.remove('d-none')); hud();
+  ['top','side','cam','legend'].forEach(id => $(id).classList.remove('d-none')); hud();
 }
 async function gameLoop(){
   for (;;){
@@ -522,7 +424,7 @@ async function gameLoop(){
     if (S.over) return;
   }
 }
-async function beginGame(cfg, plist){
+async function beginGame(cfg, plist){                          // cfg = {size, seed, mapSrc, items, map}
   SIZE = cfg.size; ZONE = SIZE * 0.8; buildBoard();
   if (cfg.items && cfg.items.length) ITEM_IDS = cfg.items.filter(id => ITEMS[id]);
   S = { turn:0, over:false, busy:false, dragon:false, size:SIZE, seed:cfg.seed, mapSrc:cfg.mapSrc, map:cfg.map,
@@ -539,7 +441,7 @@ async function beginGame(cfg, plist){
   await orderPhase(); gameLoop();
 }
 
-/* ---------- หน้าตั้งค่า: เครื่องเดียว / สร้างห้อง / เข้าร่วมห้อง / กลับเข้าห้อง ---------- */
+/* ---------- หน้าตั้งค่า: เครื่องเดียว / สร้างห้อง / เข้าร่วมห้อง ---------- */
 $('modes').innerHTML = [['local','เล่นเครื่องเดียว'],['create','สร้างห้องออนไลน์'],['join','เข้าร่วมห้อง']].map(([v,l],k) =>
   `<input type="radio" class="btn-check" name="md" id="md${v}" value="${v}" ${k===0?'checked':''}><label class="btn btn-outline-dark btn-sm" for="md${v}">${l}</label>`).join('');
 $('sizes').innerHTML = [[100,'100 · เกมเร็ว'],[500,'500 · ขนาดกลาง'],[1000,'1,000 · มาราธอน']].map(([n,l],k) =>
@@ -555,7 +457,7 @@ $('roleHint').innerHTML = CN.map(c => `<span class="dot" style="background:${hex
 const mode = () => document.querySelector('input[name=md]:checked').value;
 function applyMode(){
   const m = mode();
-  [...$('rows').children].forEach((el,k) => el.classList.toggle('d-none', m !== 'local' && k > 0));
+  [...$('rows').children].forEach((el,k) => el.classList.toggle('d-none', m !== 'local' && k > 0));   // ออนไลน์: 1 เครื่อง = 1 อัศวิน
   $('sizes').classList.toggle('d-none', m === 'join'); $('codeBox').classList.toggle('d-none', m !== 'join');
   $('startBtn').textContent = m === 'local' ? 'เริ่มเกม' : m === 'create' ? 'สร้างห้อง' : 'เข้าห้อง';
   $('setupErr').textContent = '';
@@ -572,7 +474,7 @@ async function makeCfg(){
   return { size:SIZE, seed, mapSrc: map ? 'sheet' : 'local', items:ITEM_IDS, map: map || genMap(seed) };
 }
 function enterLobby(room, slot){
-  ONLINE = true; ROOM = room; ME = slot; saveRoom({ room, slot });
+  ONLINE = true; ROOM = room; ME = slot;
   $('setup').classList.add('d-none'); $('lobby').classList.remove('d-none'); $('lobCode').textContent = room;
   pollLoop();
 }
@@ -582,10 +484,6 @@ function renderLobby(players){
   $('lobWait').textContent = ME === 0 ? (players.length < 2 ? 'รอเพื่อนเข้าห้อง (ต้องมีอย่างน้อย 2 คน)...' : '') : 'รอเจ้าของห้องกดเริ่มเกม...';
 }
 $('lobStart').onclick = async () => { $('lobStart').disabled = true; await post({ action:'krStart', room:ROOM }); krStatus('กำลังเล่น'); pollOnce(); };
-const sv = savedRoom();
-if (sv){ $('rejoinBox').classList.remove('d-none'); $('rejoinCode').textContent = sv.room; }
-$('rejoinBtn').onclick = () => enterLobby(sv.room, sv.slot);   // เข้าห้องเดิม — ถ้าเกมเริ่มแล้วจะ replay ล็อกจากต้นแบบเร็ว
-$('rejoinX').onclick = () => { saveRoom(null); $('rejoinBox').classList.add('d-none'); };
 $('startBtn').onclick = async () => {
   const m = mode(), btn = $('startBtn'), label = btn.textContent; $('setupErr').textContent = '';
   btn.disabled = true; btn.textContent = 'กำลังเชื่อมต่อ...';
@@ -607,11 +505,8 @@ function resize(){ renderer.setSize(innerWidth, innerHeight); cam.aspect = inner
 addEventListener('resize', resize); resize();
 const look = new THREE.Vector3(), want = new THREE.Vector3(0,26,20), mid = new THREE.Vector3();
 cam.position.set(0,26,20); cam.lookAt(0,0,0);
-let tick = 0;
 (function loop(){
-  requestAnimationFrame(loop); tick += .03;
-  clouds.forEach((c,k) => { c.position.x += .01 + k * .002; if (c.position.x > 55) c.position.x = -55; });   // เมฆลอย
-  if (dragonHead) dragonHead.rotation.x = Math.sin(tick * 1.4) * .15;                                        // มังกรผงกหัว
+  requestAnimationFrame(loop);
   if (S && S.players[0].mesh) {
     S.players.forEach(p => {
       p.mesh.position.x += (p.target.x - p.mesh.position.x) * .2;
@@ -623,7 +518,6 @@ let tick = 0;
     if (overview) { look.lerp(mid.set(0, 0, ov.cz), .08); want.set(0, ov.h, ov.cz + ov.h * .75); }
     else { look.lerp(f, .08); want.set(f.x, 8, f.z + 8); }
     cam.position.lerp(want, .06); cam.lookAt(look);
-    if (shake > .01){ cam.position.x += (Math.random() - .5) * shake; cam.position.y += (Math.random() - .5) * shake * .6; shake *= .9; }   // กล้องสั่นตอนมังกร
   }
   if (!$('cust').classList.contains('d-none') && pvKnight){ pvKnight.rotation.y += .02; pv.render(pvScene, pvCam); }
   renderer.render(scene, cam);

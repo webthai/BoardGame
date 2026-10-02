@@ -66,7 +66,10 @@
     <p class="mb-2"><i class="bi bi-people-fill me-1"></i><span id="mPlayers"></span></p>
     <p id="mDesc" class="mb-0 text-body-secondary"></p>
   </div>
-  <div class="modal-footer"><button id="pickBtn" class="btn btn-primary w-100"></button></div>
+  <div class="modal-footer flex-column align-items-stretch gap-2">
+    <a id="playLink" class="btn btn-success d-none" target="_blank" rel="noopener"><i class="bi bi-play-fill me-1"></i>เปิดเกม</a>
+    <button id="pickBtn" class="btn btn-primary w-100"></button>
+  </div>
 </div></div></div>
 
 <!-- Modal: เกมที่เลือก -->
@@ -112,6 +115,10 @@
 /* ===== ตั้งค่า: Web App URL จาก Apps Script ===== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbymhw3c7sedGRkvnEnM27Gu7XPgML6HiUKq3nOrkij9iRiX6xeX1DRzy8N07DUejKiozQ/exec';
 
+/* ลิงก์เปิดเกม: ชื่อเกมขึ้นต้นด้วยคีย์ → แสดงปุ่ม "เปิดเกม" ในหน้ารายละเอียด
+   (path เทียบกับตำแหน่ง index.html — ถ้าอัปขึ้นโฮสต์ ให้วางโฟลเดอร์ "Knight Rescue" ไว้ข้าง index.html หรือแก้เป็น URL เต็ม) */
+const GAME_LINKS = { 'Knight Rescue': 'Knight Rescue/knight-rescue.html' };
+
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let games = [], token = '', picks = new Set(), current = null;
@@ -151,9 +158,10 @@ async function load() {
 
 /* ---------- หน้าร้าน ---------- */
 const badge = s => s === 'ว่าง' ? 'bg-success' : 'bg-warning text-dark';
+const linkOf = g => { const k = Object.keys(GAME_LINKS).find(k => g.name.startsWith(k)); return k ? GAME_LINKS[k] : ''; };
 const cover = (g, cls = '') => g.image
   ? `<img class="cover ${cls}" src="${esc(g.image)}" alt="" loading="lazy" onerror="this.outerHTML='<div class=\\'cover-ph ${cls}\\'><i class=\\'bi bi-dice-5\\'></i></div>'">`
-  : `<div class="cover-ph ${cls}"><i class="bi bi-dice-5"></i></div>`;
+  : `<div class="cover-ph ${cls}"><i class="bi ${linkOf(g) ? 'bi-shield-shaded' : 'bi-dice-5'}"></i></div>`;   // เกมที่เล่นออนไลน์ได้ใช้ไอคอนโล่
 
 function render() {
   const q = $('q').value.trim().toLowerCase(), c = $('fCat').value, s = $('fStatus').value;
@@ -165,6 +173,7 @@ function render() {
         <div class="fw-semibold text-truncate">${esc(g.name)}</div>
         <div class="small text-muted text-truncate">${esc(g.category)} · ${esc(g.players)}</div>
         <span class="badge ${badge(g.status)} mt-1">${esc(g.status)}</span>
+        ${linkOf(g) ? '<span class="badge bg-info text-dark mt-1 ms-1">เล่นได้เลย</span>' : ''}
         ${picks.has(g.id) ? '<i class="bi bi-check-circle-fill text-primary float-end mt-1"></i>' : ''}
       </div></div></div>`).join('') : '<div class="col-12 text-center text-muted py-5">ไม่พบเกม</div>';
 }
@@ -179,6 +188,7 @@ $('grid').addEventListener('click', e => {
   $('mStatus').textContent = current.status; $('mStatus').className = 'badge ' + badge(current.status);
   $('mPlayers').textContent = current.players || '-';
   $('mDesc').textContent = current.description || '';
+  const lk = linkOf(current); $('playLink').classList.toggle('d-none', !lk); if (lk) $('playLink').href = lk;
   updatePickBtn(); gameModal.show();
 });
 

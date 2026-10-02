@@ -99,7 +99,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-/* ===== Knight Rescue — เวอร์ชันสมบูรณ์ (รอบ 7 + แก้ replay ตอน rejoin) =====
+/* ===== Knight Rescue — รอบที่ 7: เสียง + แอนิเมชัน + ฉาก (ต้นไม้ เมฆ เจ้าหญิง มังกร) + กลับเข้าห้อง (rejoin) =====
    หลักการ: สถานะทั้งหมดอยู่ใน S (JSON) · ทุกการกระทำเป็น action ที่ผ่านคิว Q ไปยัง dispatch/orderPhase/askDuel/askSpecial
    - เครื่องเดียว: UI → emit() → push เข้าคิวตรงๆ
    - ออนไลน์: UI → emit() → POST krAct (Apps Script ต่อท้ายล็อก) → ทุกเครื่อง poll ล็อกแล้ว push เข้าคิวตามลำดับเดียวกัน
@@ -207,11 +207,7 @@ function onPoll(d){
   }
   if (!S){
     renderLobby(d.players);
-    if (d.status === 'playing' && d.config && !started){
-      started = true; replaying = d.actions.length > 0;          // rejoin: มีล็อกเดิม → replay เร็ว
-      d.actions.forEach(push); seen = d.total;                    // ต้องใส่ action เข้าคิว "ก่อน" เริ่มเกม ไม่งั้น take() เห็นคิวว่างแล้วปิดโหมด replay ทันที
-      beginGame(unpackCfg(d.config), d.players); return;
-    }
+    if (d.status === 'playing' && d.config && !started){ started = true; replaying = d.actions.length > 0; beginGame(unpackCfg(d.config), d.players); }
   }
   d.actions.forEach(push); seen = d.total;
 }

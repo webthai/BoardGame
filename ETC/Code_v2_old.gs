@@ -1,24 +1,23 @@
 /**
- * Board Game Catalog + Knight Rescue - Backend (Google Apps Script)  [v3 — เพิ่มห้องออนไลน์]
+ * Board Game Catalog + Knight Rescue - Backend (Google Apps Script)  [v2]
  * วางโค้ดนี้ใน Extensions > Apps Script ของไฟล์ Google Sheet "Board Game DB" (แทนที่โค้ดเดิมทั้งหมด)
- * 1) รัน setup()    — แคตตาล็อก (เคยรันแล้วข้ามได้ ไม่ทับข้อมูลเดิม)
- * 2) รัน krSetup()  — Knight Rescue: MapConfig + ItemCards + เพิ่มเกมลงแคตตาล็อก (เคยรันแล้วข้ามได้)
- * 3) Deploy > Manage deployments > Edit > New version  (URL เดิมใช้ต่อได้)
- * 4) (ไม่บังคับ) krCleanup() — ลบห้องออนไลน์ที่เก่ากว่า 24 ชม. ตั้ง Trigger รายวันได้
+ * 1) รัน setup()    — แคตตาล็อก (ถ้าเคยรันแล้วข้ามได้ ไม่ทับข้อมูลเดิม)
+ * 2) รัน krSetup()  — Knight Rescue: สร้างแผ่น MapConfig + ItemCards และเพิ่มเกมลงแคตตาล็อก
+ * 3) Deploy > Manage deployments > Edit > New version  (ถ้าเคย Deploy แล้ว URL เดิมใช้ต่อได้)
  */
 
 const SHEET_GAMES = 'BoardGames';
 const SHEET_ADMIN = 'AdminUsers';
 const SHEET_MAP   = 'MapConfig';
 const SHEET_ITEMS = 'ItemCards';
-const SHEET_ROOMS = 'Rooms';
 const HEADERS = ['ID', 'Name', 'Category', 'Players', 'Image', 'Status', 'Description'];
-const TOKEN_TTL = 6 * 60 * 60;
+const TOKEN_TTL = 6 * 60 * 60; // 6 ชั่วโมง (วินาที)
 const KR_NAME = 'Knight Rescue: มหาสงครามอัศวินช่วยเจ้าหญิง';
 
 /* ---------- ติดตั้งแคตตาล็อก ---------- */
 function setup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+
   let g = ss.getSheetByName(SHEET_GAMES) || ss.insertSheet(SHEET_GAMES);
   if (g.getLastRow() === 0) {
     g.appendRow(HEADERS);
@@ -32,14 +31,16 @@ function setup() {
     ];
     g.getRange(2, 1, samples.length, HEADERS.length).setValues(samples);
   }
+
   let a = ss.getSheetByName(SHEET_ADMIN) || ss.insertSheet(SHEET_ADMIN);
   if (a.getLastRow() === 0) {
     a.getRange('A:B').setNumberFormat('@');
     a.appendRow(['Username', 'Password']);
     a.getRange(1, 1, 1, 2).setFontWeight('bold').setBackground('#fce8e6');
-    a.appendRow(['meen', hash_('5340')]);
+    a.appendRow(['meen', hash_('5340')]); // เก็บเป็น SHA-256 ไม่เก็บรหัสตรงๆ
     a.setFrozenRows(1);
   }
+
   const def = ss.getSheetByName('Sheet1') || ss.getSheetByName('ชีต1');
   if (def && def.getLastRow() === 0 && ss.getSheets().length > 2) ss.deleteSheet(def);
 }
@@ -51,7 +52,7 @@ const KR_DESC = {
   Treasure: 'พบหีบสมบัติ!', Checkpoint: 'จุดแวะพัก ปลอดภัย'
 };
 
-function mulberry_(a) {
+function mulberry_(a) {  // ตัวสุ่มแบบ seed (ชุดเดียวกับฝั่งเกม)
   return function () {
     a |= 0; a = a + 0x6D2B79F5 | 0;
     let t = Math.imul(a ^ a >>> 15, 1 | a);
@@ -62,12 +63,17 @@ function mulberry_(a) {
 
 function krSetup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // 1) เพิ่มเกมลงแคตตาล็อก (ถ้ายังไม่มี)
+  const g = ss.getSheetByName(SHEET_GAMES);
   if (!readGames_().some(x => x.name === KR_NAME)) {
     let max = 0;
     readGames_().forEach(x => { const n = parseInt(x.id.replace(/\D/g, ''), 10); if (n > max) max = n; });
-    gamesSheet_().appendRow(['BG' + ('000' + (max + 1)).slice(-3), KR_NAME, 'Casual Adventure - Roll & Move', '2-4 คน', '', 'ว่าง',
-      'บอร์ดเกม 3D ทอยเต๋าพาอัศวินฝ่าด่านช่วยเจ้าหญิง เล่นเครื่องเดียวหรือออนไลน์ข้ามเครื่อง เลือกบอร์ด 100 / 500 / 1,000 ช่อง']);
+    g.appendRow(['BG' + ('000' + (max + 1)).slice(-3), KR_NAME, 'Casual Adventure - Roll & Move', '4 คน', '', 'ว่าง',
+      'บอร์ดเกม 3D ทอยเต๋าพาอัศวินฝ่าด่านช่วยเจ้าหญิง เลือกบอร์ด 100 / 500 / 1,000 ช่อง']);
   }
+
+  // 2) MapConfig — ไม่ทับถ้ามีข้อมูลแล้ว (แก้ในชีตได้เอง)
   let m = ss.getSheetByName(SHEET_MAP) || ss.insertSheet(SHEET_MAP);
   if (m.getLastRow() === 0) {
     const rows = [['MapSize', 'TileID', 'TileType', 'Value', 'Description']];
@@ -78,13 +84,16 @@ function krSetup() {
         const x = r();
         const ty = x < .05 ? 'BlackHole' : x < .12 ? 'Horse' : x < .20 ? 'NPC' : x < .23 ? 'SpecialNPC' : x < .35 ? 'Danger' : x < .41 ? 'Treasure' : null;
         if (!ty) continue;
-        rows.push([size, n, ty, ty === 'Horse' ? Math.min(size - 1, n + 4 + Math.floor(r() * 6)) : '', KR_DESC[ty]]);
+        const val = ty === 'Horse' ? Math.min(size - 1, n + 4 + Math.floor(r() * 6)) : '';
+        rows.push([size, n, ty, val, KR_DESC[ty]]);
       }
     });
     m.getRange(1, 1, rows.length, 5).setValues(rows);
     m.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#e6f4ea');
     m.setFrozenRows(1);
   }
+
+  // 3) ItemCards
   let it = ss.getSheetByName(SHEET_ITEMS) || ss.insertSheet(SHEET_ITEMS);
   if (it.getLastRow() === 0) {
     it.getRange(1, 1, 5, 4).setValues([
@@ -104,7 +113,6 @@ function doGet(e) {
   const p = (e && e.parameter) || {};
   if (p.action === 'kr_map')   return json_(krMap_(parseInt(p.size, 10)));
   if (p.action === 'kr_items') return json_(krItems_());
-  if (p.action === 'kr_poll')  return json_(krPoll_(p));
   return json_({ ok: true, games: readGames_() });
 }
 
@@ -127,108 +135,18 @@ function krItems_() {
   return { ok: true, items: items };
 }
 
-/* ---------- ห้องออนไลน์ Knight Rescue ----------
- * แผ่น Rooms: Code | Status(lobby/playing) | Config(JSON) | Players(JSON) | Created
- * แผ่น R_<รหัส>: แถวละ 1 action (คอลัมน์ A = ลำดับ, B = JSON) — ทุกเครื่องเล่น action ซ้ำตามลำดับ จึงได้สถานะเกมตรงกัน
- */
-function roomsSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let s = ss.getSheetByName(SHEET_ROOMS);
-  if (!s) { s = ss.insertSheet(SHEET_ROOMS); s.appendRow(['Code', 'Status', 'Config', 'Players', 'Created']); s.getRange('A:A').setNumberFormat('@'); s.setFrozenRows(1); }
-  return s;
-}
-
-function findRoom_(code) {
-  const s = roomsSheet_();
-  const codes = s.getRange(1, 1, s.getLastRow(), 1).getValues().map(r => String(r[0]));
-  const i = codes.indexOf(String(code || '').toUpperCase());
-  return i < 1 ? null : { sheet: s, row: i + 1 };
-}
-
-function cleanPlayer_(p) {
-  return { name: String(p && p.name || 'อัศวิน').slice(0, 14), color: String(p && p.color || 'แดง'), look: (p && p.look) || {} };
-}
-
-function krCreate_(req) {
-  const cfg = JSON.stringify(req.config || {});
-  if (cfg.length > 45000) return { ok: false, error: 'config_too_large' };
-  const s = roomsSheet_(), L = 'ABCDEFGHJKMNPQRSTUVWXYZ';
-  let code;
-  do { code = ''; for (let i = 0; i < 4; i++) code += L.charAt(Math.floor(Math.random() * L.length)); } while (findRoom_(code));
-  s.appendRow([code, 'lobby', cfg, JSON.stringify([cleanPlayer_(req.player)]), new Date()]);
-  SpreadsheetApp.getActiveSpreadsheet().insertSheet('R_' + code);
-  return { ok: true, room: code, slot: 0 };
-}
-
-function krJoin_(req) {
-  const f = findRoom_(req.room); if (!f) return { ok: false, error: 'no_room' };
-  const v = f.sheet.getRange(f.row, 1, 1, 4).getValues()[0];
-  const players = JSON.parse(v[3] || '[]');
-  if (v[1] !== 'lobby') return { ok: false, error: 'started' };
-  if (players.length >= 4) return { ok: false, error: 'full' };
-  players.push(cleanPlayer_(req.player));
-  f.sheet.getRange(f.row, 4).setValue(JSON.stringify(players));
-  return { ok: true, room: v[0], slot: players.length - 1 };
-}
-
-function krStart_(req) {
-  const f = findRoom_(req.room); if (!f) return { ok: false, error: 'no_room' };
-  const players = JSON.parse(f.sheet.getRange(f.row, 4).getValue() || '[]');
-  if (players.length < 2) return { ok: false, error: 'need_2_players' };
-  f.sheet.getRange(f.row, 2).setValue('playing');
-  return { ok: true };
-}
-
-function krAct_(req) {  // ต่อท้าย action ได้เมื่อ idx ตรงกับจำนวน action ปัจจุบัน (กันสองเครื่องส่งชนกัน)
-  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('R_' + String(req.room || '').toUpperCase());
-  if (!sh) return { ok: false, error: 'no_room' };
-  const n = sh.getLastRow();
-  if (Number(req.idx) !== n) return { ok: false, error: 'stale', total: n };
-  sh.appendRow([n, JSON.stringify(req.act)]);
-  return { ok: true, total: n + 1 };
-}
-
-function krPoll_(p) {
-  const f = findRoom_(p.room); if (!f) return { ok: false, error: 'no_room' };
-  const v = f.sheet.getRange(f.row, 1, 1, 4).getValues()[0];
-  const out = { ok: true, status: v[1], players: JSON.parse(v[3] || '[]'), actions: [], total: 0 };
-  if (p.cfg && v[1] === 'playing') out.config = JSON.parse(v[2] || '{}');
-  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('R_' + v[0]);
-  const n = sh ? sh.getLastRow() : 0, since = parseInt(p.since, 10) || 0;
-  out.total = n;
-  if (n > since) out.actions = sh.getRange(since + 1, 2, n - since, 1).getValues().map(r => JSON.parse(r[0]));
-  return out;
-}
-
-function krCleanup() {  // ลบห้องที่เก่ากว่า 24 ชม.
-  const ss = SpreadsheetApp.getActiveSpreadsheet(), s = roomsSheet_();
-  if (s.getLastRow() < 2) return;
-  const rows = s.getRange(2, 1, s.getLastRow() - 1, 5).getValues(), cut = Date.now() - 24 * 3600 * 1000;
-  for (let i = rows.length - 1; i >= 0; i--) {
-    if (new Date(rows[i][4]).getTime() < cut) {
-      const sh = ss.getSheetByName('R_' + rows[i][0]); if (sh) ss.deleteSheet(sh);
-      s.deleteRow(i + 2);
-    }
-  }
-}
-
 /* ---------- API ที่เขียนข้อมูล ---------- */
 function doPost(e) {
   let req;
   try { req = JSON.parse(e.postData.contents); } catch (err) { return json_({ ok: false, error: 'bad_request' }); }
 
   if (req.action === 'login') return login_(req);
+  if (req.action === 'krStatus') return json_(krStatus_(req.status)); // เกมเปลี่ยนสถานะห้องของตัวเองได้ (ไม่ต้องใช้ Token)
 
-  // เกม Knight Rescue เรียกได้โดยไม่ต้องใช้ Token (แก้ได้เฉพาะแถวเกมนี้/ห้องของเกม)
-  const pub = { krStatus: req => krStatus_(req.status), krCreate: krCreate_, krJoin: krJoin_, krStart: krStart_, krAct: krAct_ };
-  if (pub[req.action]) {
-    const lock = LockService.getScriptLock();
-    lock.waitLock(15000);
-    try { return json_(pub[req.action](req)); } finally { lock.releaseLock(); }
-  }
-
+  // ต่อจากนี้ต้องมี Token แอดมินเท่านั้น
   const cache = CacheService.getScriptCache();
   if (!req.token || !cache.get('tok_' + req.token)) return json_({ ok: false, error: 'unauthorized' });
+
   if (req.action === 'logout') { cache.remove('tok_' + req.token); return json_({ ok: true }); }
 
   const lock = LockService.getScriptLock();
@@ -245,9 +163,13 @@ function doPost(e) {
   }
 }
 
-function krStatus_(status) {  // แก้ได้เฉพาะแถว Knight Rescue และเฉพาะค่า ว่าง/กำลังเล่น
+// สาธารณะ แต่แก้ได้เฉพาะแถวของ Knight Rescue และเฉพาะค่า ว่าง/กำลังเล่น
+function krStatus_(status) {
   const kr = readGames_().filter(x => x.name === KR_NAME)[0];
-  return kr ? setStatus_(kr.id, status) : { ok: false, error: 'not_found' };
+  if (!kr) return { ok: false, error: 'not_found' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try { return setStatus_(kr.id, status); } finally { lock.releaseLock(); }
 }
 
 /* ---------- Auth ---------- */
@@ -268,22 +190,26 @@ function hash_(text) {
 }
 
 /* ---------- Data ---------- */
-function gamesSheet_() { return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_GAMES); }
+function gamesSheet_() {
+  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_GAMES);
+}
 
 function readGames_() {
   const sh = gamesSheet_();
   if (sh.getLastRow() < 2) return [];
   return sh.getRange(2, 1, sh.getLastRow() - 1, HEADERS.length).getValues()
     .filter(r => r[0] !== '')
-    .map(r => ({ id: String(r[0]), name: String(r[1]), category: String(r[2]), players: String(r[3]),
-                 image: String(r[4]), status: String(r[5]) || 'ว่าง', description: String(r[6]) }));
+    .map(r => ({
+      id: String(r[0]), name: String(r[1]), category: String(r[2]), players: String(r[3]),
+      image: String(r[4]), status: String(r[5]) || 'ว่าง', description: String(r[6])
+    }));
 }
 
 function findRow_(id) {
   const sh = gamesSheet_();
   const ids = sh.getRange(1, 1, sh.getLastRow(), 1).getValues().map(r => String(r[0]));
   const i = ids.indexOf(String(id));
-  return i < 1 ? -1 : i + 1;
+  return i < 1 ? -1 : i + 1; // เลขแถวใน Sheet (ข้ามหัวตาราง)
 }
 
 function setStatus_(id, status) {
@@ -299,6 +225,7 @@ function saveGame_(g) {
   const sh = gamesSheet_();
   const status = g.status === 'กำลังเล่น' ? 'กำลังเล่น' : 'ว่าง';
   const values = [String(g.name).trim(), g.category || '', g.players || '', g.image || '', status, g.description || ''];
+
   if (g.id) {
     const row = findRow_(g.id);
     if (row < 0) return { ok: false, error: 'not_found' };
