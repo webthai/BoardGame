@@ -2,14 +2,19 @@
 
 ก่อนแก้โค้ดทุกครั้ง: (1) อ่านไฟล์นี้ (2) อ่าน `knight-rescue.html` ล่าสุดจาก Drive — ห้ามเขียนจากความจำ แล้วอัปเดต log ท้ายไฟล์หลังจบแต่ละรอบ
 
-## สถานะ: ครบตามแผนทั้ง 7 รอบ + แก้บั๊ก replay แล้ว
-งานต่อไป = แก้บั๊ก/ปรับจูนหลังทดสอบเล่นจริง (ดู "บั๊กที่ค้าง / ข้อจำกัด")
+## สถานะ: ครบแผน 7 รอบ + รอบ 8 (กล้อง 360°/UI) + รอบ 9 (กราฟิก 3D ละเอียดขึ้น)
+ผู้ใช้ทดสอบเกมบนหน้าเว็บจริงแล้วรอบหนึ่ง (เล่นเครื่องเดียวเห็นกระดาน 3D ได้) · งานต่อไป = แก้ตามอาการที่ผู้ใช้รายงาน (รอบ 9 ยังไม่ได้ทดสอบจริง)
 
 ## ไฟล์
-- `knight-rescue.html` — เกมปัจจุบัน (Three.js r128 + Bootstrap 5 จาก CDN, ไฟล์เดียว) · `knight-rescue_r1..r4`, `_r5a`, `_r5b`, `_r6`, `_r7` — สำรองรอบเก่า (ผู้ใช้ลบเองได้)
+- `knight-rescue.html` — เกมปัจจุบัน (Three.js r128 + Bootstrap 5 + ฟอนต์ Kanit จาก CDN, ไฟล์เดียว ~72KB)
+- สำรอง: `knight-rescue_r1..r4`, `_r5a`, `_r5b`, `_r6`, `_r7`, `_r8` (= 7.1), `_r9` (= รอบ 8: กล้อง/UI ก่อนปรับกราฟิก — **ถ้ากราฟิกใหม่หนัก/พัง ให้ย้อนไปใช้ตัวนี้**), `_gfx-draft` (ร่างกราฟิกแรกที่มีบั๊กโครง ทิ้งได้) · ผู้ใช้ลบเองได้
 - `NOTES.md` — ไฟล์นี้
-- หลังบ้าน: `Board Game/ETC/Code.gs` (**v3**) · `Code_v1_old.gs`, `Code_v2_old.gs` = ของเก่า · `ETC/README.md` = คู่มือติดตั้งทั้งโปรเจกต์ (อัปเดตแล้ว)
-- `Board Game/index.html` (แคตตาล็อก) มีปุ่ม "เปิดเกม" สำหรับเกมใน `GAME_LINKS` (Knight Rescue → `Knight Rescue/knight-rescue.html` เทียบกับตำแหน่ง index.html) · `index_v1.html` = สำรอง (ผู้ใช้ลบเอง)
+- หลังบ้าน: `Board Game/ETC/Code.gs` (**v3**) · `Code_v1_old.gs`, `Code_v2_old.gs` = ของเก่า · `ETC/README.md` = คู่มือติดตั้งทั้งโปรเจกต์
+- `Board Game/index.html` (แคตตาล็อก) มีปุ่ม "เปิดเกม" สำหรับเกมใน `GAME_LINKS` (Knight Rescue → `Knight Rescue/knight-rescue.html`) · `index_v1.html` = สำรอง
+- โฮสต์จริงของผู้ใช้: GitHub Pages `webthai.github.io/BoardGame/`
+
+## ⚠ เรื่องที่ผู้ใช้ต้องทำเอง (เช็กล่าสุดเมื่อรอบ 8: ยังไม่ทำ)
+ชีต Board Game DB มีแค่ BoardGames (4 เกมตัวอย่าง) + AdminUsers → **ยังไม่ได้วาง Code.gs v3 / รัน `krSetup()` / Deploy New version** ทำให้ index ยังไม่เห็น Knight Rescue และออนไลน์/MapConfig/ItemCards ยังใช้ไม่ได้ (เกมเล่นเครื่องเดียวใช้แผนที่สุ่มในเครื่องแทน) · ตรวจชีตซ้ำได้ด้วย Drive (`read_file_content` id `1OqPdP2EPtsoKeQxvLDZJnK_DeVclGAQudS11Pq3NdJY`)
 
 ## หลังบ้าน
 - Web App URL (ตัวเดียวกับแคตตาล็อก) ฝังที่ `API_URL` ทั้งใน index.html และ knight-rescue.html
@@ -18,35 +23,43 @@
 - POST สาธารณะ (ไม่ใช้ Token): `krStatus`, `krCreate`, `krJoin`, `krStart`, `krAct` — รันภายใน ScriptLock
 - MapConfig (MapSize|TileID|TileType|Value|Description) / ItemCards (ItemID|ItemName|EffectType|Description) แก้ในชีตได้ · EffectType ที่เกมรู้จัก: BlockDanger, BoostWarp, FullHeal, ForceSix
 - ถ้าเรียก API ไม่ได้: เล่นเครื่องเดียวได้ต่อ (แผนที่สุ่มในเครื่อง + ไอเทมในโค้ด) · ออนไลน์ต้องมี API
-- `krCleanup()` ลบห้องเก่ากว่า 24 ชม. (รันเองหรือตั้ง Trigger รายวัน)
+- `krCleanup()` ลบห้องเก่ากว่า 24 ชม.
 
 ## ออนไลน์ — ออกแบบอย่างไร
 - **Action log replay:** ทุกเครื่องเล่น action ชุดเดียวกันตามลำดับเดียวกัน → สถานะตรงกัน เพราะค่าสุ่มทั้งหมดอยู่ใน action
-- แผ่น `Rooms` (Code|Status lobby/playing|Config JSON|Players JSON|Created) + แผ่น `R_<CODE>` ต่อห้อง (แถวละ 1 action: A=ลำดับ, B=JSON) · `krAct` ต่อท้ายได้เมื่อ `idx` = จำนวน action ปัจจุบัน ไม่งั้น `stale`
-- Config ห้อง = {size, seed, mapSrc, items, map แบบย่อ {n:[type,value]}} (ไม่เก็บ desc)
-- ฝั่งเกม: `Q` คิว action + `take(...types)` · `emit(a)` · `pollLoop` (lobby 2 วิ, ตาคนอื่น 1.5 วิ, ตาเรา 4 วิ) · `beginGame(cfg, plist)` → `orderPhase()` → `gameLoop()`
-- Action: `orderRoll {i,v}`, `roll {value,r,q,k}`, `useItem {id}`, `duelRoll {s:'a'|'d', v}`, `special {t,d,v}` · UI อนุญาตเฉพาะผู้เล่นของเครื่องนั้น (`mine(i)`) · 1 เครื่อง = 1 อัศวิน (2-4 คน) · เจ้าของห้อง = slot 0
-- **Rejoin:** จำ `{room, slot}` ใน localStorage (`kr_room`) → ปุ่ม "กลับเข้าห้อง" → poll `since=0&cfg=1` ได้ config + ล็อกทั้งหมด → ใส่ action เข้าคิว **ก่อน** `beginGame` (สำคัญ: ไม่งั้น `take()` เห็นคิวว่างแล้วปิด `replaying`) → replay เร็ว (`replaying` = true ข้าม sleep/เสียง จนคิวหมด) · ล้างค่าเมื่อมีผู้ชนะ/ห้องหาย
-- `krStatus('กำลังเล่น')` ตอนเจ้าของห้องเริ่ม, `'ว่าง'` ตอนมีผู้ชนะ/ปิดหน้า — ผูกกับเกมทั้งเกม ไม่ใช่รายห้อง
+- แผ่น `Rooms` + แผ่น `R_<CODE>` ต่อห้อง (แถวละ 1 action) · `krAct` ต่อท้ายได้เมื่อ `idx` = จำนวน action ปัจจุบัน ไม่งั้น `stale`
+- Config ห้อง = {size, seed, mapSrc, items, map แบบย่อ {n:[type,value]}}
+- ฝั่งเกม: `Q` คิว action + `take(...types)` · `emit(a)` · `pollLoop` · `beginGame(cfg, plist)` → `orderPhase()` → `gameLoop()`
+- Action: `orderRoll {i,v}`, `roll {value,r,q,k}`, `useItem {id}`, `duelRoll {s,v}`, `special {t,d,v}` · UI อนุญาตเฉพาะผู้เล่นของเครื่องนั้น (`mine(i)`) · 1 เครื่อง = 1 อัศวิน (2-4 คน)
+- **Rejoin:** `{room, slot}` ใน localStorage (`kr_room`) → poll `since=0&cfg=1` → ใส่ action เข้าคิว **ก่อน** `beginGame` → replay เร็ว (`replaying` = true ข้าม sleep/เสียง/อนุภาค จนคิวหมด)
+- `krStatus('กำลังเล่น')` ตอนเริ่ม, `'ว่าง'` ตอนมีผู้ชนะ/ปิดหน้า
 
-## เสียง/ภาพ
-- เสียงสังเคราะห์ WebAudio (`beep`, `SFX.*`) ปุ่ม 🔊/🔇 · ต้องมีการคลิกก่อนถึงจะมีเสียง (ข้อจำกัดเบราว์เซอร์)
-- เต๋าหมุน (`tumble`), อัศวินกะพริบแดงตอนเสีย HP (`flash`), กล้องสั่นตอนมังกร (`shake`), confetti ตอนชนะ
-- ฉาก: ต้นไม้ (`decorate`), เมฆลอย, เจ้าหญิง + มังกรที่ช่องสุดท้าย (`buildGoal`)
-- เอฟเฟกต์ภาพ/เสียงสุ่มได้เพราะไม่กระทบสถานะ · ตรรกะเกมห้ามสุ่ม
+## กล้อง / UI (รอบ 8)
+- กล้อง orbit เอง: `orb {az, pol, dist, t*}` · ลาก = หมุน 360° + ก้มเงย · ล้อเมาส์/บีบ 2 นิ้ว = ซูม · `setView()` รีเซ็ต · 🔭 สลับตามอัศวิน/ทั้งกระดาน
+- UI: `.glass`, ลูกเต๋าใหญ่, ปุ่มทอย `pulse`, การ์ดผู้เล่น `.pc`, ฟอนต์ Kanit · เลขช่อง + ป้ายชื่ออัศวิน (`label()` Sprite)
+
+## กราฟิก (รอบ 9)
+- เงา: `renderer.shadowMap` + `sun` (DirectionalLight) ตามจุดที่กล้องมอง (ขอบเขต ±28) · ท้องฟ้าไล่สี (`sky` ShaderMaterial ตามกล้อง) + หมอก `FogExp2` + แสงอาทิตย์เรืองแสง
+- ตัวเลือกกราฟิก **สูง/ต่ำ** ที่หน้าตั้งค่า (`GFX.hi`, `applyGfx()` ตอน `beginGame`; มือถือเริ่มที่ "ต่ำ" = ไม่มีเงา, pixelRatio 1, ไม้ประดับ/อนุภาคลดลง)
+- พื้น/กระเบื้อง: texture canvas (`noiseTex`) หญ้า + หิน, กระเบื้องเป็น InstancedMesh + ฐานหินใต้กระเบื้อง (เห็นเป็นร่องรอยต่อ), ช่องพักสีทอง + คบไฟ (`torch`)
+- พร็อพประจำช่อง (`buildProp`): Danger = กับดักหนาม, Treasure = หีบ + ดาวลอย, Horse = ม้าบล็อก, BlackHole = วงหมุน, NPC/SpecialNPC = ตัวละครเล็ก (พิเศษมีดาวเรือง) · animation ผ่านรายการ `anim` (`bob/spin/swirl/flame/flag`)
+- ฉาก: ต้นสน/ต้นกลม (`tree`), หิน, ดอกไม้, ภูเขา+ยอดหิมะ, บ่อน้ำ, เมฆ (ไอโคสเฟียร์), **ปราสาท + เจ้าหญิง + มังกร** ที่ปลายทาง (`buildGoal`/`buildDragon`)
+- อัศวิน: ตา ปาก เข็มขัด รองเท้า ไหล่ (วัสดุแยกรายตัวเพื่อ `flash()`), วงแหวนสีใต้ตัวที่ถึงตา, บีบ/ยืดตอนกระโดด, หายใจ
+- อนุภาค (`burst()`): ฝุ่นตอนลงพื้น, เลือด/ประกายตอนโดน/ฟื้น/ได้ของ, ไฟมังกร, พลุตอนชนะ (ข้ามระหว่าง replay)
+- **ข้อควรระวังเวลาแก้โค้ด 3D:** (1) `Group.add()` คืนค่า Group ไม่ใช่ลูก → ห้ามต่อ `.rotation` ท้าย `add()` (เคยทำให้ปราสาท/ม้าเอียงทั้งก้อน) · (2) คีย์แคช `G('...')` ต้องไม่ซ้ำกันระหว่างพร็อพ (ตั้งชื่อยาวเฉพาะ) · (3) ห้ามใช้ `Array.at()` / syntax ใหม่เกินจำเป็น เผื่อมือถือเก่า · (4) three r128: ไม่มี sRGB/ToneMapping ให้ใช้สีเดิมตรงๆ, โลหะ (`metalness`) ไม่เกิน ~.3 เพราะไม่มี envMap (ไม่งั้นดำ) · (5) วัสดุแชร์ (`M()`) ห้ามแก้ emissive/สีรายตัว
 
 ## บั๊กที่ค้าง / ข้อจำกัด
-1. **ยังไม่ได้ทดสอบในเบราว์เซอร์จริงเลยตั้งแต่รอบ 2** (เล่นเครื่องเดียว, ออนไลน์, rejoin, บอร์ด 1000 ช่อง, InstancedMesh `setColorAt` ใน three r128, CORS ของ Apps Script, เสียง) — เริ่มแก้จากอาการที่ผู้ใช้รายงาน
-2. โควตา Apps Script: poll ทุก 1.5-4 วิ ต่อเครื่อง — บัญชีทั่วไปมีเวลารันรวมประมาณ 90 นาที/วัน อาจหมดถ้าเล่นหลายชั่วโมง → เพิ่มช่วง poll ได้
-3. ถ้าผู้เล่นคนใดปิดหน้าไปตอนถึงตาเขา เกมค้างรอ (แก้ได้ด้วย "กลับเข้าห้อง") · ยังไม่มีระบบตัดผู้เล่น/หมดเวลา
-4. สถานะแคตตาล็อก "กำลังเล่น" ผูกทั้งเกม หลายห้องพร้อมกันจะทับกัน
-5. โหมดเครื่องเดียว: ปุ่ม "เริ่มเกม" ค้างเป็น "กำลังเชื่อมต่อ..." หลังเริ่ม (ซ่อนอยู่หลังหน้าเกม ไม่กระทบการเล่น)
+1. **รอบ 9 (กราฟิก) ยังไม่ได้ทดสอบจริง** — จุดเสี่ยง: ความลื่น (เงา 2048, ต้นไม้/ดอกไม้หลายร้อยชิ้น, บอร์ด 500-1000), เงาที่ขอบเขตจำกัด (±28) ตอนโหมดทั้งกระดานบอร์ดใหญ่, `setColorAt` ของ InstancedMesh ใน r128, ฟอนต์ Kanit ในป้ายเลขช่อง (ถ้าโหลดไม่ทันจะใช้ฟอนต์สำรอง) — เริ่มแก้จากอาการที่ผู้ใช้รายงาน (ถ้าช้า: ให้เลือกกราฟิก "ต่ำ" หรือลดจำนวนใน `decorate`)
+2. ออนไลน์/rejoin/บอร์ด 500-1000/เสียง ยังไม่เคยทดสอบจริง (ออนไลน์ใช้ไม่ได้จนกว่าผู้ใช้ติดตั้ง Code.gs v3)
+3. โควตา Apps Script: poll ทุก 1.5-4 วิ ต่อเครื่อง — บัญชีทั่วไปมีเวลารันรวมประมาณ 90 นาที/วัน
+4. ถ้าผู้เล่นคนใดปิดหน้าไปตอนถึงตาเขา เกมค้างรอ (แก้ได้ด้วย "กลับเข้าห้อง") · ยังไม่มีระบบตัดผู้เล่น/หมดเวลา
+5. สถานะแคตตาล็อก "กำลังเล่น" ผูกทั้งเกม หลายห้องพร้อมกันจะทับกัน
 
 ## หลักการออกแบบ (ห้ามลืม)
-1. **สถานะทั้งหมดอยู่ใน `S`** (JSON ล้วน): `turn, over, dragon, size, seed, mapSrc, map, busy, players[]` (i = ช่องผู้เล่น/ตำแหน่งออฟเซ็ต, name, color, look, pos, hp, maxHp, freeze, items[], shield, boost, six) · ส่วน Three.js (`mesh, target, hop`) เป็นแค่ตัวแสดงผล
-2. **ห้ามสุ่มใน dispatch/orderPhase/askDuel/askSpecial** — ค่าสุ่มทุกตัวต้องมากับ action
+1. **สถานะทั้งหมดอยู่ใน `S`** (JSON ล้วน): `turn, over, dragon, size, seed, mapSrc, map, busy, players[]` (i, name, color, look, pos, hp, maxHp, freeze, items[], shield, boost, six) · ส่วน Three.js (`mesh, target, hop`) เป็นแค่ตัวแสดงผล
+2. **ห้ามสุ่มใน dispatch/orderPhase/askDuel/askSpecial** — ค่าสุ่มทุกตัวต้องมากับ action · เอฟเฟกต์ภาพ/เสียง/อนุภาคสุ่มได้
 3. ตรรกะเกมแยกจากแอนิเมชัน (`place()`, `walk()`, `jump()`, render loop) · popup (`showPop`) แสดงอย่างเดียว ผลมาจาก action ในคิว
-4. กระดาน: `SIZE`/`ZONE` เป็น `let` ตั้งใน `beginGame` · `buildBoard()` InstancedMesh · `tilePos(n)` งูเลื้อย 10 ช่อง/แถว · Checkpoint = n % 10 === 0
+4. กระดาน: `SIZE`/`ZONE` เป็น `let` ตั้งใน `beginGame` · `tilePos(n)` งูเลื้อย 10 ช่อง/แถว (x = -9..9) · Checkpoint = n % 10 === 0 (อยู่ริมกระดานเสมอ คบไฟวางด้านนอก)
 5. อัศวิน: `makeKnight(color, look)` · `look` = {skin, hat, weap, shield, cape} (ดัชนีใน `OPTS`) · สีเกราะ = สีสายอาชีพ
 6. `hurt(q)` = เสีย HP 1 จุดเดียว (Danger, Duel, มังกร) · HP หมด → `floor(pos/10)*10`, HP = `maxHp`
 7. `ITEMS`/`ITEM_IDS` เป็น `let` (โหลดจาก Sheet ได้) · ออนไลน์ใช้ `ITEM_IDS` ตาม config ของห้อง
@@ -61,10 +74,10 @@
 
 ## Log รอบ
 - รอบ 1-4: กระดาน/ทอย/เดิน → ช่องเอฟเฟกต์/HP/Checkpoint → สายอาชีพ/ไอเทม → Duel/NPC พิเศษ/มังกร
-- รอบ 5ก: ตัวปรับแต่งอัศวิน + บอร์ด 100/500/1000 · 5ข: Code.gs v2 (MapConfig, ItemCards, krStatus)
-- รอบ 6: โหมดออนไลน์ (สร้าง/เข้าร่วมห้อง, lobby, action log), คิว action + `take()`, Code.gs v3, ปุ่ม "เปิดเกม" ใน index.html
-- รอบ 7: เสียง, เต๋าหมุน, flash/shake/confetti, ฉาก, rejoin, แก้ `askSpecial` (`arguments.callee`)
-- รอบ 7.1: แก้ replay ตอน rejoin (push action ก่อน beginGame), เขียน `ETC/README.md` ใหม่ทั้งหมด
+- รอบ 5ก: ตัวปรับแต่งอัศวิน + บอร์ด 100/500/1000 · 5ข: Code.gs v2
+- รอบ 6: ออนไลน์ · รอบ 7: เสียง/เอฟเฟกต์/ฉาก/rejoin · 7.1: แก้ replay
+- รอบ 8 (ตามผลทดสอบจริง): ต้นไม้ไม่บังกระดาน · กล้อง 360° · UI ใหม่ · เลขช่อง/ป้ายชื่อ
+- รอบ 9 (ผู้ใช้ขอกราฟิกละเอียดขึ้น): เงา, ท้องฟ้า+หมอก, texture, พร็อพ 3D ประจำช่อง, ไม้ประดับ, ปราสาท/มังกร/เจ้าหญิงละเอียดขึ้น, อัศวินละเอียดขึ้น, อนุภาค, ตัวเลือกกราฟิกสูง/ต่ำ · ทบทวนโค้ดเองแล้วแก้บั๊ก 4 จุด (Group.add().rotation, คีย์แคชซ้ำ, `Array.at`, ฝาหีบ) ก่อนส่งมอบ
 
 ## วิธีแก้ไฟล์ย้อนหลัง
 Drive แก้เนื้อหาไฟล์เดิมไม่ได้ → สร้างไฟล์ใหม่ชื่อเดิม แล้วเปลี่ยนชื่อ/ลบไฟล์เก่า

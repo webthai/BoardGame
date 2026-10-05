@@ -6,30 +6,14 @@
 <title>Board Game</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  body { background:#f1f3fa; font-family:'Kanit',system-ui,sans-serif; }
-  .game-card { cursor:pointer; transition:transform .15s, box-shadow .15s; border:0; border-radius:16px; overflow:hidden; }
-  .game-card:hover { transform:translateY(-3px); box-shadow:0 .6rem 1.2rem rgba(0,0,0,.18); }
-  .cover { aspect-ratio:1/1; object-fit:cover; background:#dfe4ee; width:100%; display:block; }
+  body { background:#f4f6fb; }
+  .game-card { cursor:pointer; transition:transform .15s, box-shadow .15s; border:0; }
+  .game-card:hover { transform:translateY(-3px); box-shadow:0 .5rem 1rem rgba(0,0,0,.15); }
+  .cover { aspect-ratio:1/1; object-fit:cover; background:#dfe4ee; width:100%; }
   .cover-ph { aspect-ratio:1/1; background:linear-gradient(135deg,#dfe4ee,#c9d2e6); display:flex; align-items:center; justify-content:center; font-size:3rem; color:#8793ad; }
   .key-btn { width:34px; height:34px; padding:0; line-height:1; opacity:.75; }
   .fab { position:fixed; right:16px; bottom:16px; z-index:1030; }
-
-  /* ปกเว็บ (hero) */
-  .hero { position:relative; overflow:hidden; color:#fff; background:linear-gradient(135deg,#232a6e 0%,#5b2c8f 55%,#c2417a 100%); }
-  .hero::after { content:""; position:absolute; inset:0; background:radial-gradient(circle at 85% 20%,rgba(255,214,102,.35),transparent 45%); pointer-events:none; }
-  .hero h1 { font-weight:700; font-size:clamp(1.8rem,5vw,2.8rem); margin:0; text-shadow:0 3px 12px rgba(0,0,0,.35); }
-  .hero .lead { opacity:.9; font-size:clamp(.95rem,2.4vw,1.15rem); }
-  .hero .chip { display:inline-block; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.28); border-radius:999px; padding:3px 14px; font-size:.85rem; margin:0 6px 6px 0; backdrop-filter:blur(4px); }
-  .float { position:absolute; font-size:2.2rem; opacity:.22; animation:bob 6s ease-in-out infinite; user-select:none; }
-  @keyframes bob { 50% { transform:translateY(-14px) rotate(8deg); } }
-
-  /* การ์ดเกมแนะนำ (ใหญ่ เต็มแถว) */
-  .wide { flex:0 0 100% !important; max-width:100% !important; width:100% !important; }
-  .feat { background:linear-gradient(135deg,#fff,#fff7e0); box-shadow:0 .5rem 1.4rem rgba(120,80,0,.18); border:2px solid #ffd166; }
-  .feat .cover { aspect-ratio:auto; height:100%; min-height:240px; }
-  .feat h4 { font-weight:700; }
 </style>
 </head>
 <body>
@@ -42,30 +26,16 @@
 </nav>
 
 <!-- ===== หน้าร้าน (Public) ===== -->
-<div id="shopWrap">
-  <header class="hero">
-    <span class="float" style="left:6%;top:18%">🎲</span>
-    <span class="float" style="left:78%;top:55%;animation-delay:1.2s">🏰</span>
-    <span class="float" style="left:90%;top:12%;animation-delay:2.4s">⚔️</span>
-    <span class="float" style="left:44%;top:68%;animation-delay:3.1s">♟️</span>
-    <div class="container py-4 py-md-5 position-relative" style="z-index:1">
-      <h1>🎲 คลังบอร์ดเกม</h1>
-      <p class="lead mb-3">เลือกเกมที่อยากเล่น · บางเกมเล่นออนไลน์ข้ามเครื่องได้เลย</p>
-      <div id="stats"></div>
-    </div>
-  </header>
-
-  <main id="shop" class="container py-3">
-    <div class="row g-2 mb-3">
-      <div class="col-12 col-md-6"><input id="q" class="form-control" placeholder="ค้นหาชื่อเกม..."></div>
-      <div class="col-6 col-md-3"><select id="fCat" class="form-select"><option value="">ทุกแนว</option></select></div>
-      <div class="col-6 col-md-3"><select id="fStatus" class="form-select"><option value="">ทุกสถานะ</option><option>ว่าง</option><option>กำลังเล่น</option></select></div>
-    </div>
-    <div id="loading" class="text-center py-5"><div class="spinner-border"></div></div>
-    <div id="error" class="alert alert-danger d-none"></div>
-    <div id="grid" class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3"></div>
-  </main>
-</div>
+<main id="shop" class="container py-3">
+  <div class="row g-2 mb-3">
+    <div class="col-12 col-md-6"><input id="q" class="form-control" placeholder="ค้นหาชื่อเกม..."></div>
+    <div class="col-6 col-md-3"><select id="fCat" class="form-select"><option value="">ทุกแนว</option></select></div>
+    <div class="col-6 col-md-3"><select id="fStatus" class="form-select"><option value="">ทุกสถานะ</option><option>ว่าง</option><option>กำลังเล่น</option></select></div>
+  </div>
+  <div id="loading" class="text-center py-5"><div class="spinner-border"></div></div>
+  <div id="error" class="alert alert-danger d-none"></div>
+  <div id="grid" class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3"></div>
+</main>
 
 <button id="picksBtn" class="btn btn-primary rounded-pill shadow fab d-none"><i class="bi bi-check2-circle me-1"></i>เกมที่เลือก <span id="picksCount" class="badge bg-light text-primary">0</span></button>
 
@@ -129,7 +99,7 @@
       <div class="col-6"><label class="form-label small mb-0">แนวเกม</label><input id="eCat" class="form-control" placeholder="ปาร์ตี้, บลัฟ..."></div>
       <div class="col-6"><label class="form-label small mb-0">ผู้เล่น</label><input id="ePlayers" class="form-control" placeholder="2-4 คน"></div>
     </div>
-    <div class="mb-2"><label class="form-label small mb-0">ลิงก์รูปปก (เว้นว่าง = ใช้ปกอัตโนมัติ)</label><input id="eImage" class="form-control" placeholder="https://..."></div>
+    <div class="mb-2"><label class="form-label small mb-0">ลิงก์รูปปก</label><input id="eImage" class="form-control" placeholder="https://..."></div>
     <div class="mb-2"><label class="form-label small mb-0">สถานะ</label><select id="eStatus" class="form-select"><option>ว่าง</option><option>กำลังเล่น</option></select></div>
     <div class="mb-2"><label class="form-label small mb-0">คำอธิบาย</label><textarea id="eDesc" class="form-control" rows="4"></textarea></div>
   </div>
@@ -145,61 +115,9 @@
 /* ===== ตั้งค่า: Web App URL จาก Apps Script ===== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbymhw3c7sedGRkvnEnM27Gu7XPgML6HiUKq3nOrkij9iRiX6xeX1DRzy8N07DUejKiozQ/exec';
 
-/* เกมแนะนำ: ชื่อเกมขึ้นต้นด้วยคีย์ → ขึ้นเป็นเกมแรก (การ์ดใหญ่) + ปุ่ม "เล่นเลย"
+/* ลิงก์เปิดเกม: ชื่อเกมขึ้นต้นด้วยคีย์ → แสดงปุ่ม "เปิดเกม" ในหน้ารายละเอียด
    (path เทียบกับตำแหน่ง index.html — ถ้าอัปขึ้นโฮสต์ ให้วางโฟลเดอร์ "Knight Rescue" ไว้ข้าง index.html หรือแก้เป็น URL เต็ม) */
 const GAME_LINKS = { 'Knight Rescue': 'Knight Rescue/knight-rescue.html' };
-/* ถ้าเกมแนะนำยังไม่อยู่ในชีต (ยังไม่รัน krSetup) จะแสดงจากข้อมูลนี้แทน เพื่อให้ขึ้นหน้าเว็บเสมอ */
-const GAME_FALLBACK = { 'Knight Rescue': { name:'Knight Rescue: มหาสงครามอัศวินช่วยเจ้าหญิง', category:'Casual Adventure - Roll & Move', players:'2-4 คน',
-  description:'บอร์ดเกม 3D ทอยเต๋าพาอัศวินฝ่าด่านช่วยเจ้าหญิง เล่นเครื่องเดียวหรือออนไลน์ข้ามเครื่อง เลือกบอร์ด 100 / 500 / 1,000 ช่อง ปรับแต่งอัศวินได้' } };
-
-/* ---------- หน้าปก ---------- */
-const svgUri = s => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
-const KR_COVER = svgUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
-<defs>
-<linearGradient id="sk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f6fd6"/><stop offset=".55" stop-color="#8fc8ff"/><stop offset="1" stop-color="#ffd9b0"/></linearGradient>
-<linearGradient id="gr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6bc16b"/><stop offset="1" stop-color="#3a8a46"/></linearGradient>
-<radialGradient id="sn"><stop offset="0" stop-color="#fff6c8"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0"/></radialGradient>
-<linearGradient id="tt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2b0"/><stop offset="1" stop-color="#ff9f1c"/></linearGradient>
-</defs>
-<rect width="400" height="400" fill="url(#sk)"/>
-<circle cx="330" cy="95" r="80" fill="url(#sn)"/><circle cx="330" cy="95" r="26" fill="#fff3b0"/>
-<g fill="#fff" opacity=".92"><ellipse cx="70" cy="95" rx="34" ry="11"/><ellipse cx="95" cy="86" rx="24" ry="12"/><ellipse cx="240" cy="140" rx="30" ry="9"/></g>
-<path d="M0 255 L70 165 L130 240 L200 150 L280 250 L340 180 L400 255 V300 H0Z" fill="#8a9dc7"/>
-<path d="M70 165 L88 188 L70 183 L56 191Z M200 150 L222 178 L200 172 L182 180Z" fill="#fff"/>
-<rect y="250" width="400" height="150" fill="url(#gr)"/>
-<polygon points="95,400 285,400 328,252 300,252" fill="#f2e7c9"/>
-<g stroke="#cdbf96" stroke-width="2"><line x1="108" y1="372" x2="272" y2="372"/><line x1="140" y1="335" x2="262" y2="335"/><line x1="170" y1="305" x2="252" y2="305"/><line x1="195" y1="282" x2="240" y2="282"/><line x1="214" y1="265" x2="232" y2="265"/></g>
-<g>
-<rect x="262" y="208" width="116" height="44" fill="#d8d0bd"/>
-<rect x="250" y="168" width="26" height="84" fill="#cfc7b5"/><polygon points="246,168 280,168 263,134" fill="#c0392b"/>
-<rect x="364" y="168" width="26" height="84" fill="#cfc7b5"/><polygon points="360,168 394,168 377,134" fill="#c0392b"/>
-<rect x="296" y="150" width="48" height="102" fill="#dcd4c1"/><polygon points="290,150 350,150 320,112" fill="#c0392b"/>
-<rect x="318" y="86" width="2" height="30" fill="#555"/><polygon points="320,86 346,94 320,102" fill="#ff7aa8"/>
-<path d="M308 252 V228 a12 12 0 0 1 24 0 V252Z" fill="#3a2a1a"/>
-<g fill="#d8d0bd"><rect x="264" y="200" width="10" height="9"/><rect x="282" y="200" width="10" height="9"/><rect x="348" y="200" width="10" height="9"/><rect x="366" y="200" width="10" height="9"/></g>
-</g>
-<g transform="translate(150 78)"><ellipse cx="0" cy="12" rx="30" ry="13" fill="#2e8b3a"/><circle cx="34" cy="4" r="11" fill="#2e8b3a"/><circle cx="38" cy="1" r="2.4" fill="#ff2a2a"/><polygon points="30,-4 33,-14 37,-3" fill="#f5f0dc"/>
-<path d="M-8 8 L-40 -22 L-10 -4Z M6 8 L30 -26 L18 4Z" fill="#c0392b"/><path d="M-30 14 Q-52 18 -62 34 Q-40 28 -28 22Z" fill="#2e8b3a"/></g>
-<g>
-<ellipse cx="148" cy="392" rx="52" ry="8" fill="#000" opacity=".18"/>
-<rect x="120" y="352" width="22" height="36" fill="#3a3f50"/><rect x="152" y="352" width="22" height="36" fill="#3a3f50"/>
-<rect x="112" y="294" width="70" height="62" rx="4" fill="#d33a3a"/><rect x="110" y="330" width="74" height="10" fill="#f2c230"/>
-<rect x="94" y="298" width="20" height="46" rx="3" fill="#cfd6e0"/><rect x="180" y="298" width="20" height="46" rx="3" fill="#cfd6e0"/>
-<rect x="124" y="262" width="46" height="38" rx="3" fill="#ffd2a8"/><circle cx="138" cy="280" r="3.2" fill="#222"/><circle cx="156" cy="280" r="3.2" fill="#222"/><rect x="141" y="290" width="12" height="2.6" fill="#8a3b3b"/>
-<rect x="118" y="244" width="58" height="24" rx="4" fill="#cfd6e0"/><rect x="128" y="258" width="38" height="5" fill="#20242e"/><rect x="141" y="222" width="14" height="26" rx="3" fill="#d33a3a"/>
-<rect x="206" y="256" width="7" height="86" fill="#e8eef8"/><rect x="194" y="338" width="31" height="7" fill="#f2c230"/><rect x="206" y="345" width="7" height="16" fill="#6b4a2b"/>
-<circle cx="84" cy="330" r="22" fill="#3a6fd3" stroke="#f2c230" stroke-width="4"/><circle cx="84" cy="330" r="7" fill="#f2c230"/>
-</g>
-<text x="200" y="46" text-anchor="middle" font-family="Arial Black,Impact,sans-serif" font-size="38" font-weight="900" fill="url(#tt)" stroke="#6b3a00" stroke-width="2.5" paint-order="stroke">KNIGHT</text>
-<text x="200" y="82" text-anchor="middle" font-family="Arial Black,Impact,sans-serif" font-size="30" font-weight="900" fill="url(#tt)" stroke="#6b3a00" stroke-width="2.5" paint-order="stroke">RESCUE</text>
-</svg>`);
-const GAME_COVERS = { 'Knight Rescue': KR_COVER };
-function genCover(name, cat){                                  // ปกอัตโนมัติสำหรับเกมที่ไม่มีรูป: ไล่สีตามชื่อ + ตัวอักษรแรก + ลายแต้มลูกเต๋า
-  let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;
-  const h2 = (h + 55) % 360, ini = esc([...name.trim()][0] || '🎲').toUpperCase();
-  const dots = [[70,70],[330,70],[70,330],[330,330],[200,200]].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="16" fill="#fff" opacity=".14"/>`).join('');
-  return svgUri(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${h},70%,56%)"/><stop offset="1" stop-color="hsl(${h2},72%,32%)"/></linearGradient></defs><rect width="400" height="400" fill="url(#g)"/><rect x="40" y="40" width="320" height="320" rx="40" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="6"/>${dots}<text x="200" y="245" text-anchor="middle" font-family="Arial Black,Impact,sans-serif" font-size="170" font-weight="900" fill="#fff" fill-opacity=".92">${ini}</text><text x="200" y="348" text-anchor="middle" font-family="sans-serif" font-size="26" fill="#fff" fill-opacity=".8">${esc(cat || '')}</text></svg>`);
-}
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -221,73 +139,47 @@ async function post(payload) {
 }
 function setToken(t) { token = t; try { t ? sessionStorage.setItem('bg_token', t) : sessionStorage.removeItem('bg_token'); } catch (e) {} }
 
-const linkOf = g => { const k = Object.keys(GAME_LINKS).find(k => g.name.startsWith(k)); return k ? GAME_LINKS[k] : ''; };
-function prepare(list) {
-  list = list.slice();
-  Object.keys(GAME_FALLBACK).forEach(k => {                           // เกมแนะนำที่ยังไม่อยู่ในชีต → เติมให้ (ไม่ใช่แถวในชีตจริง)
-    if (!list.some(g => g.name.startsWith(k))) list.push({ id:'LOCAL-' + k, local:true, image:'', status:'ว่าง', ...GAME_FALLBACK[k] });
-  });
-  return list.sort((a, b) => (linkOf(b) ? 1 : 0) - (linkOf(a) ? 1 : 0));   // เกมแนะนำขึ้นก่อน (sort เสถียร ลำดับอื่นคงเดิม)
-}
-
 async function load() {
   $('loading').classList.remove('d-none'); $('error').classList.add('d-none');
-  let raw = [];
   try {
-    const r = await fetch(API_URL); const d = await r.json(); raw = d.games || [];
+    const r = await fetch(API_URL); const d = await r.json();
+    games = d.games || [];
+    const cats = [...new Set(games.map(g => g.category).filter(Boolean))];
+    const keep = $('fCat').value;
+    $('fCat').innerHTML = '<option value="">ทุกแนว</option>' + cats.map(c => `<option>${esc(c)}</option>`).join('');
+    $('fCat').value = cats.includes(keep) ? keep : '';
+    render(); renderAdmin();
   } catch (e) {
-    $('error').textContent = 'โหลดข้อมูลจากชีตไม่สำเร็จ — แสดงเฉพาะเกมแนะนำ (ตรวจสอบ API_URL และการ Deploy)';
+    $('error').textContent = 'โหลดข้อมูลไม่สำเร็จ — ตรวจสอบ API_URL และการ Deploy';
     $('error').classList.remove('d-none');
   }
-  games = prepare(raw);
-  const cats = [...new Set(games.map(g => g.category).filter(Boolean))];
-  const keep = $('fCat').value;
-  $('fCat').innerHTML = '<option value="">ทุกแนว</option>' + cats.map(c => `<option>${esc(c)}</option>`).join('');
-  $('fCat').value = cats.includes(keep) ? keep : '';
-  render(); renderAdmin(); renderStats();
   $('loading').classList.add('d-none');
 }
 
 /* ---------- หน้าร้าน ---------- */
 const badge = s => s === 'ว่าง' ? 'bg-success' : 'bg-warning text-dark';
-const coverUrl = g => g.image || (Object.keys(GAME_COVERS).find(k => g.name.startsWith(k)) ? GAME_COVERS[Object.keys(GAME_COVERS).find(k => g.name.startsWith(k))] : genCover(g.name, g.category));
-const cover = (g, cls = '') => `<img class="cover ${cls}" src="${esc(coverUrl(g))}" alt="" loading="lazy" onerror="this.outerHTML='<div class=\\'cover-ph ${cls}\\'><i class=\\'bi bi-dice-5\\'></i></div>'">`;
-function renderStats() {
-  const real = games.filter(g => !g.local), free = real.filter(g => g.status === 'ว่าง').length;
-  $('stats').innerHTML = `<span class="chip">🎲 ${games.length} เกม</span><span class="chip">✅ ว่าง ${free}</span><span class="chip">🎮 กำลังเล่น ${real.length - free}</span>`;
-}
+const linkOf = g => { const k = Object.keys(GAME_LINKS).find(k => g.name.startsWith(k)); return k ? GAME_LINKS[k] : ''; };
+const cover = (g, cls = '') => g.image
+  ? `<img class="cover ${cls}" src="${esc(g.image)}" alt="" loading="lazy" onerror="this.outerHTML='<div class=\\'cover-ph ${cls}\\'><i class=\\'bi bi-dice-5\\'></i></div>'">`
+  : `<div class="cover-ph ${cls}"><i class="bi ${linkOf(g) ? 'bi-shield-shaded' : 'bi-dice-5'}"></i></div>`;   // เกมที่เล่นออนไลน์ได้ใช้ไอคอนโล่
 
-function card(g) {
-  const lk = linkOf(g);
-  if (lk) return `
-    <div class="col-12 wide"><div class="card game-card feat" data-id="${esc(g.id)}"><div class="row g-0">
-      <div class="col-md-4">${cover(g)}</div>
-      <div class="col-md-8"><div class="card-body d-flex flex-column h-100 p-3 p-md-4">
-        <span class="badge bg-warning text-dark mb-2 align-self-start">⭐ เกมแนะนำ · เล่นออนไลน์ได้</span>
-        <h4 class="mb-1">${esc(g.name)}</h4>
-        <div class="text-muted small mb-2">${esc(g.category)} · ${esc(g.players)} <span class="badge ${badge(g.status)} ms-1">${esc(g.status)}</span></div>
-        <p class="mb-3 flex-grow-1 text-body-secondary">${esc(g.description)}</p>
-        <div class="d-flex gap-2 flex-wrap"><a class="btn btn-success btn-lg px-4" href="${esc(lk)}" target="_blank" rel="noopener"><i class="bi bi-play-fill me-1"></i>เล่นเลย</a><button class="btn btn-outline-secondary btn-lg">รายละเอียด</button></div>
-      </div></div></div></div></div>`;
-  return `
+function render() {
+  const q = $('q').value.trim().toLowerCase(), c = $('fCat').value, s = $('fStatus').value;
+  const list = games.filter(g => (!q || g.name.toLowerCase().includes(q)) && (!c || g.category === c) && (!s || g.status === s));
+  $('grid').innerHTML = list.length ? list.map(g => `
     <div class="col"><div class="card game-card h-100 shadow-sm" data-id="${esc(g.id)}">
       ${cover(g, 'card-img-top')}
       <div class="card-body p-2">
         <div class="fw-semibold text-truncate">${esc(g.name)}</div>
         <div class="small text-muted text-truncate">${esc(g.category)} · ${esc(g.players)}</div>
         <span class="badge ${badge(g.status)} mt-1">${esc(g.status)}</span>
+        ${linkOf(g) ? '<span class="badge bg-info text-dark mt-1 ms-1">เล่นได้เลย</span>' : ''}
         ${picks.has(g.id) ? '<i class="bi bi-check-circle-fill text-primary float-end mt-1"></i>' : ''}
-      </div></div></div>`;
-}
-function render() {
-  const q = $('q').value.trim().toLowerCase(), c = $('fCat').value, s = $('fStatus').value;
-  const list = games.filter(g => (!q || g.name.toLowerCase().includes(q)) && (!c || g.category === c) && (!s || g.status === s));
-  $('grid').innerHTML = list.length ? list.map(card).join('') : '<div class="col-12 text-center text-muted py-5">ไม่พบเกม</div>';
+      </div></div></div>`).join('') : '<div class="col-12 text-center text-muted py-5">ไม่พบเกม</div>';
 }
 ['q', 'fCat', 'fStatus'].forEach(id => $(id).addEventListener('input', render));
 
 $('grid').addEventListener('click', e => {
-  if (e.target.closest('a')) return;                                 // ปุ่ม "เล่นเลย" เปิดลิงก์เอง ไม่เปิดหน้ารายละเอียด
   const el = e.target.closest('.game-card'); if (!el) return;
   current = games.find(g => g.id === el.dataset.id); if (!current) return;
   $('mTitle').textContent = current.name;
@@ -321,8 +213,8 @@ $('picksBtn').addEventListener('click', () => picksModal.show());
 $('clearPicks').addEventListener('click', () => { picks.clear(); renderPicks(); render(); picksModal.hide(); });
 
 /* ---------- Login / Admin ---------- */
-const showShop = () => { $('admin').classList.add('d-none'); $('shopWrap').classList.remove('d-none'); $('picksBtn').classList.toggle('d-none', !picks.size); };
-const showAdmin = () => { $('shopWrap').classList.add('d-none'); $('picksBtn').classList.add('d-none'); $('admin').classList.remove('d-none'); renderAdmin(); };
+const showShop = () => { $('admin').classList.add('d-none'); $('shop').classList.remove('d-none'); $('picksBtn').classList.toggle('d-none', !picks.size); };
+const showAdmin = () => { $('shop').classList.add('d-none'); $('picksBtn').classList.add('d-none'); $('admin').classList.remove('d-none'); renderAdmin(); };
 
 $('keyBtn').addEventListener('click', () => {
   if (token) return showAdmin();
@@ -344,7 +236,7 @@ $('backBtn').addEventListener('click', showShop);
 $('logoutBtn').addEventListener('click', async () => { const t = token; setToken(''); showShop(); try { await post({ action: 'logout', token: t }); } catch (e) {} });
 
 function renderAdmin() {
-  $('adminRows').innerHTML = games.filter(g => !g.local).map(g => `
+  $('adminRows').innerHTML = games.map(g => `
     <tr data-id="${esc(g.id)}">
       <td class="text-muted small">${esc(g.id)}</td>
       <td class="fw-semibold">${esc(g.name)}</td>
@@ -369,7 +261,7 @@ $('adminRows').addEventListener('click', async e => {
     b.disabled = true;
     const status = g.status === 'ว่าง' ? 'กำลังเล่น' : 'ว่าง';
     const d = await post({ action: 'setStatus', token, id: g.id, status });
-    if (d.ok) { g.status = status; if (status !== 'ว่าง') picks.delete(g.id); renderPicks(); renderStats(); }
+    if (d.ok) { g.status = status; if (status !== 'ว่าง') picks.delete(g.id); renderPicks(); }
     renderAdmin();
   }
 });
