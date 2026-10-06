@@ -35,10 +35,6 @@
   #tools{top:10px;right:10px;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;max-width:60vw}
   #tools .btn{border-radius:999px;font-size:.8rem;font-weight:500;box-shadow:0 4px 10px rgba(0,0,0,.3)}
   #tools .hint{width:100%;text-align:right;color:#fff;font-size:.72rem;text-shadow:0 1px 3px #000;opacity:.85}
-  #log{top:92px;right:10px;width:236px;max-height:34vh;overflow:hidden;color:#e8ecff;border-radius:14px;padding:8px 10px;font-size:.78rem}
-  #log .lt{font-weight:600;color:var(--gold);margin-bottom:4px}
-  #log .li{padding:2px 0;border-bottom:1px dashed rgba(255,255,255,.12);opacity:.7}
-  #log .li:first-child{opacity:1;color:#fff}
   #msg{bottom:16px;left:50%;transform:translateX(-50%);color:#fff;border-radius:999px;padding:9px 22px;max-width:92vw;text-align:center;font-weight:500;border:1px solid var(--gold)}
   #msg.pop{animation:pop .28s ease-out}
   @keyframes pop{from{transform:translateX(-50%) scale(.85);opacity:.3}}
@@ -57,7 +53,6 @@
   .sw.on,.btn.on{outline:3px solid #0d6efd}
   .cf{position:fixed;top:-30px;z-index:20;font-size:22px;pointer-events:none;animation:fall 3.2s linear forwards}
   @keyframes fall{to{transform:translateY(112vh) rotate(540deg)}}
-  @media(max-width:700px){#log{display:none}}
   @media(max-width:600px){#side{width:150px}.pc{font-size:.78rem;padding:5px 7px 5px 9px}.pc .sub{display:none}#legend{display:none}#top{min-width:200px;padding:8px 12px}#dice{width:54px;height:54px;font-size:1.6rem}}
 </style>
 </head>
@@ -72,13 +67,11 @@
 </div>
 <div id="side" class="hud d-none"><div id="plist" class="d-flex flex-column gap-2"></div></div>
 <div id="tools" class="hud d-none">
-  <span id="fps" class="badge text-bg-dark align-self-center">-- fps</span>
   <button id="cam" class="btn btn-light btn-sm">🔭 ทั้งกระดาน</button>
   <button id="camReset" class="btn btn-light btn-sm">🎯 รีเซ็ตมุม</button>
   <button id="mute" class="btn btn-light btn-sm">🔊</button>
   <div class="hint">ลาก = หมุนกล้อง 360° · ล้อเมาส์/บีบนิ้ว = ซูม</div>
 </div>
-<div id="log" class="hud glass d-none"><div class="lt">📜 เหตุการณ์ล่าสุด</div><div id="logList"></div></div>
 <div id="msg" class="hud glass d-none"></div>
 <div id="legend" class="hud glass d-none"></div>
 
@@ -93,11 +86,7 @@
       </div>
       <div class="btn-group w-100 mb-2" id="modes"></div>
       <div class="btn-group w-100 mb-2" id="sizes"></div>
-      <div class="d-flex align-items-center flex-wrap gap-2 mb-3">
-        <small class="text-muted">กราฟิก</small><div class="btn-group btn-group-sm" id="gfx"></div>
-        <small class="text-muted ms-1">เฟรมเรต</small><div class="btn-group btn-group-sm" id="fpsg"></div>
-        <small class="text-muted w-100">เครื่องช้า/มือถือเลือก "ต่ำ" · 120 จะลื่นจริงเมื่อจอรองรับ 120Hz</small>
-      </div>
+      <div class="d-flex align-items-center gap-2 mb-3"><small class="text-muted">กราฟิก</small><div class="btn-group btn-group-sm" id="gfx"></div><small class="text-muted">(เครื่องช้า/มือถือเลือก "ต่ำ")</small></div>
       <div id="codeBox" class="mb-3 d-none"><input id="roomCode" class="form-control text-uppercase text-center fs-4" maxlength="4" placeholder="รหัสห้อง"></div>
       <div id="rows"></div>
       <div id="roleHint" class="small text-muted"></div>
@@ -116,10 +105,10 @@
   </div></div>
 </div>
 <div id="cust" class="d-none">
-  <div class="card shadow-lg" style="max-width:480px;width:100%"><div class="card-body">
+  <div class="card shadow-lg" style="max-width:460px;width:100%"><div class="card-body">
     <h5 id="custT" class="mb-2"></h5>
     <div class="d-flex gap-3">
-      <canvas id="pv" width="170" height="230" style="width:170px;height:230px;background:#cfe6ff;border-radius:14px;flex:none"></canvas>
+      <canvas id="pv" width="170" height="210" style="width:170px;height:210px;background:#cfe6ff;border-radius:14px;flex:none"></canvas>
       <div id="custOpts" class="small flex-grow-1"></div>
     </div>
     <button id="custDone" class="btn btn-primary w-100 mt-3">เสร็จ</button>
@@ -146,15 +135,18 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-/* ===== Knight Rescue — รอบที่ 10: อัศวินทรงชิบิโค้งมน + แอนิเมชันขี่ม้า + ป้ายเลขช่องเหนือหัว + เฟรมเรต 60/120 + บันทึกเหตุการณ์ =====
-   - อัศวิน: หัวโต ตาโต หมวกเหล็กมีสัน เข็มขัดไม้กางเขนทอง ผ้าคลุม (ผ้าสั่นไหวตามลม) · 4 ตัวเริ่มต้นหน้าตา/หมวก/อาวุธ/ผ้าคลุมต่างกัน (SLOT_LOOKS)
-   - แอนิเมชันทั้งหมดเป็นแบบ tween ตามเวลาจริง (dt) → ลื่นเท่ากันที่ 60/120Hz · ตัวจำกัดเฟรมเรตเลือกที่หน้าตั้งค่า
-   - ช่องม้า: ประกาศ → กระโดดขึ้นม้า → ม้าควบตามเส้นทาง → ลงจากม้า → ม้าเดินกลับที่เดิม (ม้าทำงานเบื้องหลัง ไม่บล็อกเกม)
-   ข้อระวังโค้ด: Group.add() คืนค่า Group (ไม่ใช่ลูก) · คีย์แคช G('...') ต้องไม่ซ้ำ · ห้ามสุ่มในตรรกะเกม (สุ่มได้เฉพาะเอฟเฟกต์ภาพ/เสียง)
-   หลักการเดิม: สถานะทั้งหมดอยู่ใน S (JSON) · ทุกการกระทำเป็น action ผ่านคิว Q · ออนไลน์ = action log replay · Rejoin replay เร็ว (replaying = true → tween จบทันที) */
+/* ===== Knight Rescue — รอบที่ 9: กราฟิก 3D ละเอียดขึ้น (แก้บั๊กโครงพร็อพแล้ว) =====
+   เงา (shadow map) · ท้องฟ้าไล่สี + หมอก · วัสดุ Standard + ลายหิน/หญ้า · พร็อพ 3D ประจำช่อง (กับดักหนาม, หีบสมบัติ, ม้า, หลุมดำหมุน, NPC)
+   ไม้ประดับ (สน/ต้นกลม, หิน, ดอกไม้, ภูเขา, บ่อน้ำ) · คบไฟที่จุดพัก · ปราสาท + มังกร + เจ้าหญิงที่ปลายทาง · อนุภาค (ฝุ่น, ประกาย, ไฟ, พลุ)
+   อัศวินละเอียดขึ้น (ตา เข็มขัด รองเท้า ไหล่) + วงแหวนบอกตา + บีบตัวตอนกระโดด · ตัวเลือกกราฟิก สูง/ต่ำ
+   ข้อระวังโค้ด: Group.add() คืนค่า Group (ไม่ใช่ลูก) → ห้ามต่อ .rotation ท้าย add() · คีย์แคช G('...') ต้องไม่ซ้ำกัน
+   หลักการเดิม: สถานะทั้งหมดอยู่ใน S (JSON) · ทุกการกระทำเป็น action ผ่านคิว Q · ค่าสุ่มอยู่ใน action (ห้ามสุ่มในตรรกะเกม) · เอฟเฟกต์ภาพ/เสียงสุ่มได้
+   - เครื่องเดียว: UI → emit() → push เข้าคิวตรงๆ · ออนไลน์: emit() → POST krAct → ทุกเครื่อง poll ล็อกแล้ว push ตามลำดับเดียวกัน
+   Rejoin: จำ {room, slot} ใน localStorage แล้ว replay ล็อกจาก since=0 แบบเร็ว (replaying = true)
+   กล้อง: orbit เอง (orb.az/pol/dist) — ลากหมุน, ล้อเมาส์/บีบนิ้วซูม */
 const API_URL = 'https://script.google.com/macros/s/AKfycbymhw3c7sedGRkvnEnM27Gu7XPgML6HiUKq3nOrkij9iRiX6xeX1DRzy8N07DUejKiozQ/exec';
 let SIZE = 100, ZONE = 80;
-const MAX_ITEMS = 3, KS = .7;                                  // KS = สเกลอัศวินในฉาก
+const MAX_ITEMS = 3;
 const COLORS = { 'แดง':0xd33a3a, 'น้ำเงิน':0x3a6fd3, 'เขียว':0x3fae4f, 'เหลือง':0xe6c229 };
 const CN = Object.keys(COLORS);
 const ROLES = { 'แดง':{n:'สายถึก',d:'HP เริ่มต้น 5'}, 'น้ำเงิน':{n:'สายม้า',d:'ตกช่องม้าวิ่งเพิ่ม +3'}, 'เขียว':{n:'สายมิตร NPC',d:'ช่อง NPC ได้ผลดีเสมอ'}, 'เหลือง':{n:'สายดวงดี',d:'ทอยได้เลขคู่ 20% ฟื้น HP 1'} };
@@ -171,23 +163,11 @@ let replaying = false;
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, replaying ? 0 : ms));
 const hex = c => '#' + c.toString(16).padStart(6,'0');
-const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const d6 = () => 1 + Math.floor(Math.random() * 6);
 const rnd = () => Math.round(Math.random() * 1000) / 1000;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const lerp = (a, b, t) => a + (b - a) * t;
-const ease = k => k * k * (3 - 2 * k);
-const lerpAngle = (a, b, t) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t;
-const GFX = { hi:true };
-
-/* ---------- บันทึกเหตุการณ์ + ข้อความประกาศ (ทุกการกระทำถูกบอกบนจอ) ---------- */
-const LOG = [];
-function logAdd(t){
-  if (replaying || !t || LOG[0] === t) return;
-  LOG.unshift(t); if (LOG.length > 7) LOG.pop();
-  $('logList').innerHTML = LOG.map(x => `<div class="li">${esc(x)}</div>`).join('');
-}
-const say = t => { const m = $('msg'); m.textContent = t; m.classList.toggle('d-none', !t); if (t){ m.classList.remove('pop'); void m.offsetWidth; m.classList.add('pop'); logAdd(t); } };
+const say = t => { const m = $('msg'); m.textContent = t; m.classList.toggle('d-none', !t); if (t){ m.classList.remove('pop'); void m.offsetWidth; m.classList.add('pop'); } };
+const GFX = { hi:true };                                       // คุณภาพกราฟิก (ตั้งตอนเริ่มเกม)
 
 /* ---------- เสียง (WebAudio สังเคราะห์ ไม่ต้องมีไฟล์) ---------- */
 let muted = false, AC = null;
@@ -205,8 +185,6 @@ const SFX = {
   step:() => beep(520, .06, 'square', .025), roll:() => beep(300, .1, 'triangle', .06, 200),
   hurt:() => beep(170, .3, 'sawtooth', .07, -90), good:() => { beep(660, .1); setTimeout(() => beep(880, .15), 110); },
   fire:() => beep(110, .6, 'sawtooth', .08, -60), warp:() => beep(400, .25, 'sine', .06, 500),
-  mount:() => { beep(240, .12, 'triangle', .07, 120); setTimeout(() => beep(360, .14, 'triangle', .07, 160), 120); },
-  gallop:() => beep(140, .05, 'square', .035),
   win:() => [523,659,784,1047].forEach((f,k) => setTimeout(() => beep(f, .25, 'triangle', .07), k*160))
 };
 $('mute').onclick = () => { muted = !muted; $('mute').textContent = muted ? '🔇' : '🔊'; };
@@ -327,17 +305,8 @@ function glow(color, size, op = .9){
 }
 const sunGlow = glow(0xfff1b8, 320, .85); scene.add(sunGlow);
 
-/* ---------- Tween (ตามเวลาจริง → ลื่นเท่ากันที่ 60/120Hz) ---------- */
-const tweens = [];
-function tween(dur, fn){
-  if (replaying || dur <= 0){ fn(1); return Promise.resolve(); }   // replay: ข้ามไปสถานะสุดท้ายทันที
-  return new Promise(res => tweens.push({ t:0, dur, fn, res }));
-}
-const ptween = (p, dur, fn) => { p.tw = (p.tw || 0) + 1; return tween(dur, fn).then(() => { p.tw--; }); };
-
 /* ---------- กล้อง orbit 360° ---------- */
 function tilePos(n){ const i = Math.max(n,1)-1, r = Math.floor(i/10), c = r%2 ? 9-i%10 : i%10; return new THREE.Vector3(c*2-9, 0, r*2-9); }
-const tileXZ = (p, n) => { const t = tilePos(n); return new THREE.Vector3(t.x + OFF[p.i][0], .2, t.z + OFF[p.i][1]); };
 let ov = { cz:0, h:26 }, overview = false;
 const orb = { az:0, pol:.78, dist:11.3, tAz:0, tPol:.78, tDist:11.3 };
 function setView(){
@@ -362,13 +331,14 @@ $('camReset').onclick = setView;
   cv.addEventListener('wheel', e => { e.preventDefault(); orb.tDist = clamp(orb.tDist * (1 + e.deltaY * .001), 4, maxD()); }, { passive:false });
 }
 
-/* ป้ายข้อความ 3D (เลขช่อง) */
-function label(text, fg, bg, w, h, sx, sy){
+/* ป้ายข้อความ 3D (เลขช่อง / ชื่ออัศวิน) */
+function label(text, fg, bg, w, h, sx, sy, top){
   const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
   if (bg){ const r = h / 2; x.fillStyle = bg; x.beginPath(); x.arc(r, r, r - 2, Math.PI/2, Math.PI*1.5); x.arc(w - r, r, r - 2, Math.PI*1.5, Math.PI/2); x.closePath(); x.fill(); }
   x.font = `bold ${Math.floor(h * .56)}px Kanit, system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
   x.fillStyle = fg; x.fillText(text, w / 2, h / 2 + 2, w - 10);
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(c), transparent:true, depthWrite:false, fog:false }));
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(c), transparent:true, depthWrite:false, depthTest:!top, fog:false }));
+  if (top) s.renderOrder = 10;
   s.scale.set(sx, sy, 1); return s;
 }
 
@@ -394,10 +364,9 @@ function fireworks(){
 }
 
 /* ---------- พร็อพ 3D ประจำช่อง (animated) ---------- */
-const anim = [];                                                   // {o, k, ph} — bob / spin / swirl / flame / flag / horse
+const anim = [];                                                   // {o, k, ph} — bob / spin / swirl / flame / flag
 const A = (o, k) => { o.userData.y0 = o.position.y; anim.push({ o, k, ph:Math.random() * 6.28 }); return o; };
-const PROPS = {};                                                  // เลขช่อง → กลุ่มพร็อพ (ใช้หาม้าตอนขี่)
-function propSpike(){
+function propSpike(){                                              // กับดักหนาม
   const g = new THREE.Group(), cone = G('spk', () => new THREE.ConeGeometry(.1, .55, 6)), m = M(0xaab2c4, { metalness:.25, roughness:.35 });
   g.add(mk(G('plate', () => new THREE.CylinderGeometry(.62, .66, .07, 20)), M(0x4a2a2a), 0, .04, 0));
   [[0,0],[.3,.1],[-.3,.1],[.12,-.3],[-.12,-.3],[.35,-.25],[-.35,-.25]].forEach(([x,z]) => g.add(mk(cone, m, x, .33, z)));
@@ -405,54 +374,36 @@ function propSpike(){
   rg.rotation.x = Math.PI / 2; g.add(rg);
   return g;
 }
-function propChest(){
+function propChest(){                                              // หีบสมบัติ + ดาวทองลอย
   const g = new THREE.Group(), wood = M(0x8b5a2b), gold = M(0xf2c230, { metalness:.3, roughness:.35, emissive:0x553300 });
   g.add(mk(G('chestbody', () => new THREE.BoxGeometry(.74, .38, .5)), wood, 0, .2, 0));
   const lid = mk(G('chestlid', () => new THREE.CylinderGeometry(.25, .25, .74, 12, 1, false, 0, Math.PI)), M(0x7a4a22), 0, .39, 0);
-  lid.rotation.z = Math.PI / 2; g.add(lid);
+  lid.rotation.z = Math.PI / 2; g.add(lid);                        // ฝาโค้งครึ่งวงกลม แกนยาวตามความกว้างของหีบ
   [-.27, .27].forEach(x => g.add(mk(G('chestband', () => new THREE.BoxGeometry(.08, .44, .54)), gold, x, .22, 0)));
   g.add(mk(G('chestlock', () => new THREE.BoxGeometry(.14, .16, .06)), gold, 0, .3, .27));
   const star = mk(G('chestoct', () => new THREE.OctahedronGeometry(.16)), M(0xffe066, { emissive:0xffaa00, emissiveIntensity:.8 }), 0, 1.0, 0, false);
   g.add(A(star, 'spin'));
   return g;
 }
-function propHorse(){                                              // ม้าทรงโค้งมน (ขาแยกข้อต่อเพื่อวิ่ง/เดิน)
-  const g = new THREE.Group(), hd = g.userData, br = M(0xa9743c, { roughness:.6 }), dk = M(0x3b2a1a), light = M(0xf3e6cf), red = M(0xc0392b), gold = M(0xf2c230, { metalness:.3, roughness:.4 });
-  const S1 = G('horsesph', () => new THREE.SphereGeometry(1, 16, 12)), C1 = G('horsecyl', () => new THREE.CylinderGeometry(1, 1, 1, 10)), B1 = G('horsebox', () => new THREE.BoxGeometry(1, 1, 1));
-  const add = (geo, mat, sx, sy, sz, x, y, z, parent = g) => { const m = mk(geo, mat, x, y, z); m.scale.set(sx, sy, sz); parent.add(m); return m; };
-  add(S1, br, .36, .36, .68, 0, .78, 0);                          // ลำตัว
-  add(S1, br, .33, .34, .34, 0, .82, .5);                         // อก
-  add(S1, br, .31, .31, .32, 0, .8, -.45);                        // ก้น
-  add(C1, br, .13, .42, .13, 0, 1.08, .64).rotation.x = .55;       // คอ (เอียงไปข้างหน้า)
-  for (let i = 0; i < 4; i++) add(S1, dk, .06, .09, .06, 0, 1.28 - i * .1, .5 + i * .05 + i * .02);   // แผงคอ
-  const head = new THREE.Group(); head.position.set(0, 1.3, .92); g.add(head);
-  add(S1, br, .17, .19, .3, 0, 0, .05, head); add(S1, light, .12, .12, .16, 0, -.07, .3, head);
-  [-1, 1].forEach(s => { add(C1, br, .04, .1, .04, s * .1, .2, -.05, head); add(S1, new THREE.MeshBasicMaterial({ color:0x111111 }), .03, .035, .02, s * .15, .06, .12, head); });
-  const tail = new THREE.Group(); tail.position.set(0, .92, -.7); tail.rotation.x = .6; g.add(tail);
-  add(S1, dk, .08, .3, .08, 0, -.22, -.04, tail);
-  const legs = [[-.2,.4],[.2,.4],[-.2,-.4],[.2,-.4]].map(([x, z]) => {
-    const lg = new THREE.Group(); lg.position.set(x, .62, z); g.add(lg);
-    add(C1, br, .085, .3, .085, 0, -.15, 0, lg); add(C1, br, .07, .3, .07, 0, -.45, 0, lg); add(C1, dk, .085, .08, .085, 0, -.62, 0, lg);
-    return lg;
-  });
-  add(B1, red, .5, .07, .42, 0, 1.13, -.02); add(B1, gold, .54, .02, .46, 0, 1.095, -.02);      // อานม้า
-  hd.legs = legs; hd.tail = tail; hd.head = head; hd.running = false; hd.busy = Promise.resolve();
-  return A(g, 'horse');
+function propHorse(){                                              // ม้าศึกทรงบล็อก
+  const g = new THREE.Group(), br = M(0x9c6b3a), dk = M(0x4a2f1a);
+  g.add(mk(G('hbody', () => new THREE.BoxGeometry(.5, .38, .95)), br, 0, .7, 0));
+  const neck = mk(G('hneck', () => new THREE.BoxGeometry(.24, .5, .26)), br, 0, 1.0, .5); neck.rotation.x = -.45; g.add(neck);
+  g.add(mk(G('hhead', () => new THREE.BoxGeometry(.26, .28, .46)), br, 0, 1.2, .78));
+  g.add(mk(G('hmane', () => new THREE.BoxGeometry(.08, .4, .18)), dk, 0, 1.12, .42));
+  const tail = mk(G('htail', () => new THREE.BoxGeometry(.1, .5, .12)), dk, 0, .7, -.55); tail.rotation.x = .4; g.add(tail);
+  [[-.17,-.35],[.17,-.35],[-.17,.35],[.17,.35]].forEach(([x,z]) => g.add(mk(G('hleg', () => new THREE.BoxGeometry(.13, .55, .13)), dk, x, .28, z)));
+  g.add(mk(G('hsaddle', () => new THREE.BoxGeometry(.56, .08, .5)), M(0xc0392b), 0, .92, 0));
+  g.scale.setScalar(.85); return g;
 }
-function gallop(hd, f, amp){                                       // ท่าวิ่ง/เดินของม้า (amp = 0 → ยืนนิ่ง)
-  const [fl, fr, bl, br] = hd.legs;
-  fl.rotation.x = Math.sin(f) * amp; fr.rotation.x = Math.sin(f + .5) * amp;
-  bl.rotation.x = Math.sin(f + Math.PI) * amp; br.rotation.x = Math.sin(f + Math.PI + .5) * amp;
-  hd.tail.rotation.x = .6 + (amp ? Math.sin(f * .7) * .28 : 0); hd.head.rotation.x = amp ? Math.sin(f) * .1 : 0;
-}
-function propBlackHole(){
+function propBlackHole(){                                          // หลุมดำหมุน
   const g = new THREE.Group(), tor = G('bhtor', () => new THREE.TorusGeometry(.55, .07, 8, 32));
   g.add(mk(G('bhdisc', () => new THREE.CylinderGeometry(.52, .52, .03, 28)), new THREE.MeshBasicMaterial({ color:0x05020f }), 0, .06, 0, false));
   const r1 = mk(tor, new THREE.MeshBasicMaterial({ color:0x9b59ff }), 0, .1, 0, false); r1.rotation.x = Math.PI / 2; g.add(A(r1, 'swirl'));
   const r2 = mk(tor, new THREE.MeshBasicMaterial({ color:0x4dd2ff }), 0, .11, 0, false); r2.rotation.x = Math.PI / 2; r2.scale.setScalar(.6); g.add(A(r2, 'swirl'));
   return g;
 }
-function propNPC(special){
+function propNPC(special){                                         // NPC / NPC พิเศษ
   const g = new THREE.Group(), robe = M(special ? 0xf5f0ff : 0x3a8fe0);
   g.add(mk(G('npcbody', () => new THREE.CylinderGeometry(.2, .32, .62, 10)), robe, 0, .38, 0));
   g.add(mk(G('npchead', () => new THREE.SphereGeometry(.2, 12, 10)), M(0xffd2a8), 0, .86, 0));
@@ -465,7 +416,7 @@ function propNPC(special){
   return A(g, 'bob');
 }
 function buildProp(type){ return type === 'Danger' ? propSpike() : type === 'Treasure' ? propChest() : type === 'Horse' ? propHorse() : type === 'BlackHole' ? propBlackHole() : type === 'NPC' ? propNPC(false) : type === 'SpecialNPC' ? propNPC(true) : null; }
-function torch(x, z){
+function torch(x, z){                                              // คบไฟที่จุดพัก
   const g = new THREE.Group();
   g.add(mk(G('torchpost', () => new THREE.CylinderGeometry(.06, .09, 1.2, 8)), M(0x4a2f1a), 0, .6, 0));
   g.add(mk(G('torchbowl', () => new THREE.CylinderGeometry(.2, .12, .18, 10)), M(0x777e8a, { metalness:.2 }), 0, 1.25, 0));
@@ -493,7 +444,7 @@ function buildBoard(){
       const s = label(String(n), n % 10 === 0 ? '#7a4b00' : '#6b6b6b', null, 96, 48, .62, .31);
       s.position.set(p.x - .45, .5, p.z + .5); scene.add(s);
     }
-    if (n % 10 === 0 && n < SIZE) torch(p.x + (p.x > 0 ? 1.45 : -1.45), p.z);
+    if (n % 10 === 0 && n < SIZE) torch(p.x + (p.x > 0 ? 1.45 : -1.45), p.z);   // คบไฟข้างจุดพัก (จุดพักอยู่ริมกระดานเสมอ)
   }
   scene.add(base); scene.add(im);
   ov = { cz, h: Math.max(26, rows * 2.1) };
@@ -514,7 +465,7 @@ function tree(x, z, s, r){
 }
 function decorate(rows, cz){
   const r = rng(SIZE * 7 + 1), k = GFX.hi ? 1 : .4, zr = rows * 2 + 24;
-  for (let i = 0, n = Math.min(160, 24 + rows * 3) * k; i < n; i++){
+  for (let i = 0, n = Math.min(160, 24 + rows * 3) * k; i < n; i++){        // ต้นไม้ (|x| ≥ 14 ไม่บังกระดาน)
     const side = r() < .5 ? -1 : 1; tree(side * (14 + r() * 22), -14 + r() * zr, .8 + r() * .9, r());
   }
   const rock = G('rock', () => new THREE.DodecahedronGeometry(.4, 0)), rm = M(0x9aa0a8, { flatShading:true });
@@ -527,12 +478,12 @@ function decorate(rows, cz){
     scene.add(mk(stem, M(0x2e8b3a), x, .12, z, false)); scene.add(mk(head, M(pal[Math.floor(r() * 4)], { roughness:.5 }), x, .3, z, false));
   }
   const cone = G('mount', () => new THREE.ConeGeometry(1, 1, 6)), snow = G('snowcap', () => new THREE.ConeGeometry(1, 1, 6));
-  for (let i = 0; i < 16; i++){
+  for (let i = 0; i < 16; i++){                                              // ภูเขารอบฉาก
     const a = i / 16 * 6.283 + r() * .3, R = 170 + r() * 80, h = 40 + r() * 60, w = 28 + r() * 26;
     const mt = mk(cone, M(0x7a8aa5, { flatShading:true }), Math.cos(a) * R, h / 2 - .3, cz + Math.sin(a) * R, false); mt.scale.set(w, h, w); scene.add(mt);
     const sc = mk(snow, M(0xf4f8ff, { flatShading:true }), mt.position.x, h * .86, mt.position.z, false); sc.scale.set(w * .36, h * .3, w * .36); scene.add(sc);
   }
-  for (let i = 0; i < 3; i++){
+  for (let i = 0; i < 3; i++){                                               // บ่อน้ำ
     const side = i % 2 ? 1 : -1, p = mk(new THREE.CircleGeometry(6 + r() * 5, 28), new THREE.MeshStandardMaterial({ color:0x3aa0e8, roughness:.12, metalness:.2, transparent:true, opacity:.92 }), side * (30 + r() * 10), -.22, cz + (r() - .5) * rows * 2, false);
     p.rotation.x = -Math.PI / 2; scene.add(p);
   }
@@ -542,7 +493,7 @@ function decorate(rows, cz){
     g.position.set(-70 + r() * 140, 22 + r() * 8, -20 + r() * (rows * 2 + 60)); scene.add(g); clouds.push(g);
   }
 }
-function buildGoal(){
+function buildGoal(){                                        // เจ้าหญิง + มังกร + ปราสาท ที่ช่องสุดท้าย
   const end = tilePos(SIZE), stone = M(0xcfc7b5, { roughness:.9 }), roof = M(0xc0392b), dark = M(0x3a2a1a);
   const castle = new THREE.Group();
   castle.add(mk(G('castlewall', () => new THREE.BoxGeometry(14, 3.4, 1.8)), stone, 0, 1.7, 0));
@@ -609,151 +560,58 @@ function drawMarkers(){
   Object.entries(S.map).forEach(([n,t]) => {
     const g = buildProp(t.type); if (!g) return;
     const p = tilePos(+n); g.position.set(p.x, .2, p.z); g.rotation.y = ((+n * 37) % 6) * .5;
-    if (t.type === 'Horse'){ const q = tilePos(+n + 1); g.rotation.y = Math.atan2(q.x - p.x, q.z - p.z); }   // ม้าหันไปทางเส้นทางข้างหน้า
-    if (t.type === 'NPC' || t.type === 'SpecialNPC') g.userData.y0 = .2;
-    PROPS[n] = g; scene.add(g);
+    if (t.type === 'NPC' || t.type === 'SpecialNPC') g.userData.y0 = .2;              // ให้ NPC ลอยขึ้นลงรอบความสูงพื้นกระเบื้อง
+    scene.add(g);
   });
   $('legend').innerHTML = Object.values(TYPES).map(t => `<span class="dot" style="background:${hex(t.c)};border:1px solid #999"></span>${t.n}`).join(' &nbsp; ') + ' &nbsp; <span class="dot" style="background:#ffc83d"></span>จุดพัก &nbsp; <span style="opacity:.7">แผนที่: ' + (S.mapSrc === 'sheet' ? 'Google Sheet' : 'สุ่มในเครื่อง') + '</span>';
 }
 
-/* ---------- Knight ทรงชิบิ (โค้งมน หัวโต ตาโต) ปรับแต่งได้ · สีเกราะเสริม = สีสายอาชีพ ---------- */
+/* ---------- Knight (ปรับแต่งได้: ผิว หมวก อาวุธ โล่ ผ้าคลุม · สีเกราะ = สีสายอาชีพ) ---------- */
 const SKINS = [0xffd2a8, 0xf1c27d, 0xc68642, 0x8d5524, 0x5e3b1e];
-const CAPES = [null, 0xc0392b, 0x2a5fb0, 0x1e7a3a, 0x6b2fa0, 0x222222];
-const HAIRS = [0x4a2f1a, 0x15151a, 0xe8c15a, 0xc4562a, 0xe9eef5];
-const OPTS = {
-  skin:{t:'ผิว', v:SKINS}, face:{t:'หน้าตา', v:['ตากลมโต','ยิ้ม','มุ่งมั่น','ร่าเริง']},
-  hat:{t:'หมวก', v:['หมวกเหล็กสัน','หมวกเขา','มงกุฎ','ผมสั้น']}, hair:{t:'สีผม', v:HAIRS},
-  weap:{t:'อาวุธ', v:['ดาบ','ขวาน','ไม่มี']}, shield:{t:'โล่', v:['ไม่มี','โล่กลม']}, cape:{t:'ผ้าคลุม', v:CAPES}
-};
-/* 4 ตัวเริ่มต้นหน้าตาต่างกันชัดเจน (ผิว/ใบหน้า/หมวก/สีผม/อาวุธ/โล่/ผ้าคลุม) — auto:true = ยังไม่ได้ปรับเอง (ออนไลน์จะใช้ตามช่องที่เข้าห้อง) */
-const SLOT_LOOKS = [
-  { skin:0, face:0, hat:0, hair:0, weap:0, shield:0, cape:1, auto:true },   // สีแดง: หมวกเหล็กสัน + ดาบ + ผ้าคลุมแดง
-  { skin:2, face:2, hat:1, hair:1, weap:1, shield:1, cape:2, auto:true },   // สีน้ำเงิน: หมวกเขา + ขวาน + โล่ + ผ้าคลุมน้ำเงิน
-  { skin:1, face:1, hat:3, hair:3, weap:0, shield:1, cape:3, auto:true },   // สีเขียว: ผมสั้นสีส้ม + ดาบ + โล่ + ผ้าคลุมเขียว
-  { skin:3, face:3, hat:2, hair:2, weap:2, shield:0, cape:4, auto:true }    // สีเหลือง: มงกุฎ + ผมบลอนด์ + ผ้าคลุมม่วง
-];
-const defLook = () => ({ ...SLOT_LOOKS[0] });
-function capeGeo(){                                              // ผ้าคลุมบานออกด้านล่าง (ตาข่าย 9x9 ให้โบกได้)
-  const g = new THREE.PlaneGeometry(1, 1, 8, 8), p = g.attributes.position, v = new Float32Array(p.count);
-  for (let i = 0; i < p.count; i++){
-    const u = p.getX(i) + .5, t = .5 - p.getY(i); v[i] = t;
-    p.setXYZ(i, (u - .5) * (.5 + .7 * t), 1.14 - t * .82, -.3 - t * .2 - Math.sin(u * Math.PI) * .04);
-  }
-  g.computeVertexNormals(); g.userData.base = Float32Array.from(p.array); g.userData.v = v; return g;
-}
+const CAPES = [null, 0x8b1a1a, 0x1a3a8b, 0x1e7a3a, 0x6b2fa0, 0x222222];
+const OPTS = { skin:{t:'ผิว', v:SKINS}, hat:{t:'หมวก', v:['หมวกเหล็ก','หมวกเขา','มงกุฎ','ผมสั้น']}, weap:{t:'อาวุธ', v:['ดาบ','ขวาน','ไม่มี']}, shield:{t:'โล่', v:['ไม่มี','โล่กลม']}, cape:{t:'ผ้าคลุม', v:CAPES} };
+const defLook = () => ({ skin:0, hat:0, weap:0, shield:0, cape:0 });
 function makeKnight(color, L = defLook()){
-  L = { ...SLOT_LOOKS[0], ...L };
-  const g = new THREE.Group(), U = g.userData.k = {};
-  const km = (c, rough = .5, metal = 0, extra = {}) => new THREE.MeshStandardMaterial({ color:c, roughness:rough, metalness:metal, ...extra });   // วัสดุแยกรายตัว (flash แดงเฉพาะตัว)
-  const silver = km(0xdde3ec, .3, .25), steelD = km(0xaab3c4, .4, .25), accent = km(color, .4, .15), skinM = km(SKINS[L.skin], .55), dark = km(0x2a2d3a, .7);
-  const gold = km(0xf2c230, .3, .3, { emissive:0x2a1c00 }), brown = km(0x6b4a2b, .8), hairM = km(HAIRS[L.hair], .7), capeC = CAPES[L.cape];
-  const S1 = G('ksph', () => new THREE.SphereGeometry(1, 20, 14)), C1 = G('kcyl', () => new THREE.CylinderGeometry(1, 1, 1, 16)), T1 = G('ktap', () => new THREE.CylinderGeometry(.8, 1, 1, 16)), B1 = G('kbox', () => new THREE.BoxGeometry(1, 1, 1));
-  const DM = G('kdome', () => new THREE.SphereGeometry(1, 24, 14, 0, Math.PI * 2, 0, 1.05)), DH = G('kdomeh', () => new THREE.SphereGeometry(1, 24, 14, 0, Math.PI * 2, 0, 1.5)), TR = G('ktor', () => new THREE.TorusGeometry(1, .06, 8, 28)), TS = G('ktors', () => new THREE.TorusGeometry(1, .16, 6, 14, Math.PI)), CO = G('kcone', () => new THREE.ConeGeometry(1, 1, 8));
-  const part = (geo, mat, sx, sy, sz, x, y, z, parent = g) => { const m = new THREE.Mesh(geo, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
-  // ขา + รองเท้าเกราะ (pivot ที่สะโพก เพื่อแกว่งตอนเดิน)
-  U.legs = [-1, 1].map(s => { const lg = new THREE.Group(); lg.position.set(s * .17, .55, 0); g.add(lg); part(C1, dark, .1, .3, .1, 0, -.15, 0, lg); part(S1, silver, .17, .14, .26, 0, -.37, .05, lg); return lg; });
-  part(T1, silver, .36, .24, .34, 0, .64, 0);                                     // ผ้าเกราะรอบเอว
-  [-1, 1].forEach(s => { const d = part(B1, accent, .1, .1, .03, s * .22, .6, .31); d.rotation.z = Math.PI / 4; });   // ข้าวหลามตัดสีสาย (เหมือนอ้างอิง)
-  part(T1, silver, .3, .52, .26, 0, .98, 0); part(S1, silver, .31, .24, .22, 0, 1.04, .06);   // ลำตัว + เกราะอก
-  part(C1, brown, .34, .07, .3, 0, .76, 0);                                       // เข็มขัด
-  part(B1, gold, .05, .17, .03, 0, .76, .31); part(B1, gold, .17, .05, .03, 0, .77, .31);   // กางเขนทอง
-  part(T1, km(capeC || color, .5), .3, .1, .27, 0, 1.22, 0);                      // ปกคอ (สีเดียวกับผ้าคลุม)
-  [-1, 1].forEach(s => part(S1, silver, .17, .14, .17, s * .37, 1.13, 0));        // เกราะไหล่
-  U.arms = [-1, 1].map(s => { const ag = new THREE.Group(); ag.position.set(s * .41, 1.1, 0); ag.rotation.z = s * .1; g.add(ag); part(C1, silver, .075, .3, .075, 0, -.17, 0, ag); part(S1, silver, .1, .1, .1, 0, -.37, 0, ag); return ag; });
-  // หัวโต + ใบหน้า
-  const head = new THREE.Group(); head.position.set(0, 1.66, 0); g.add(head);
-  part(S1, skinM, .58, .54, .54, 0, 0, 0, head);
-  [-1, 1].forEach(s => part(S1, skinM, .09, .12, .07, s * .56, -.04, 0, head));
-  const eyeM = km(0x0a0a12, .1, .2), mouthM = km(0x7a2e2e, .6), browM = km(0x33241a, .8), white = new THREE.MeshBasicMaterial({ color:0xffffff });
-  const F = [{ ew:.11, eh:.15, by:.19, br:0 }, { ew:.1, eh:.13, by:.23, br:-.12 }, { ew:.1, eh:.12, by:.19, br:-.38 }, { ew:.125, eh:.17, by:.24, br:-.1 }][L.face % 4];
-  [-1, 1].forEach(s => {
-    part(S1, eyeM, F.ew, F.eh, .06, s * .2, -.02, .49, head);
-    part(S1, white, .04, .04, .02, s * .2 + .04, .05 + (F.eh - .15), .545, head); part(S1, white, .02, .02, .02, s * .2 - .035, -.07, .545, head);
-    part(B1, browM, .13, .026, .02, s * .2, F.by, .5, head).rotation.z = -s * F.br;
-    const bl = new THREE.Mesh(G('kblush', () => new THREE.CircleGeometry(.075, 16)), new THREE.MeshBasicMaterial({ color:0xff9aa8, transparent:true, opacity:.55 })); bl.position.set(s * .34, -.14, .43); bl.rotation.y = s * .7; head.add(bl);
-  });
-  if (L.face === 1){ part(TS, mouthM, .075, .075, .075, 0, -.18, .5, head).rotation.z = Math.PI; }
-  else if (L.face === 3){ part(S1, mouthM, .06, .045, .02, 0, -.25, .5, head); part(S1, km(0xff8a9a, .6), .035, .02, .02, 0, -.265, .505, head); }
-  else if (L.face === 2){ part(B1, mouthM, .07, .018, .02, .02, -.25, .5, head).rotation.z = .15; }
-  else part(B1, mouthM, .08, .018, .02, 0, -.25, .5, head);
-  // หมวก / ผม
-  const helmet = (mat, rim) => {
-    part(DM, mat, .64, .64, .64, 0, .02, 0, head);
-    part(TR, rim, .57, .57, .57, 0, .34, 0, head).rotation.x = Math.PI / 2;
-    [-1, 1].forEach(s => { part(C1, mat, .13, .07, .13, s * .62, -.02, 0, head).rotation.z = Math.PI / 2; part(C1, dark, .09, .075, .09, s * .64, -.02, 0, head).rotation.z = Math.PI / 2; });   // แผ่นป้องกันหู
+  const g = new THREE.Group(), steel = 0xcfd6e0, gold = 0xf2c230, wood = 0x6b4a2b;
+  const add = (w,h,d,x,y,z,c,metal = 0,rough = .65) => {          // วัสดุของอัศวินแต่ละตัวแยกกัน (เพื่อให้กะพริบแดงเฉพาะตัว)
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshStandardMaterial({ color:c, roughness:rough, metalness:metal }));
+    m.position.set(x,y,z); m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
   };
-  if (L.hat === 0){
-    helmet(silver, accent);
-    const fin = G('kfin', () => { const sh = new THREE.Shape(); sh.moveTo(-.38, 0); sh.lineTo(.55, 0); sh.lineTo(.12, .52); sh.closePath(); const gm = new THREE.ExtrudeGeometry(sh, { depth:.07, bevelEnabled:false }); gm.translate(0, 0, -.035); return gm; });
-    const fm = new THREE.Mesh(fin, silver); fm.rotation.y = -Math.PI / 2; fm.position.set(0, .5, 0); fm.castShadow = true; head.add(fm);      // สันหมวกตามภาพอ้างอิง
-  } else if (L.hat === 1){
-    const bronze = km(0xb9833a, .4, .25); helmet(bronze, accent);
-    [-1, 1].forEach(s => part(CO, km(0xf5f0dc, .5), .1, .5, .1, s * .5, .52, 0, head).rotation.z = -s * .9);   // เขา
-  } else {
-    part(DH, hairM, .62, .62, .62, 0, 0, -.04, head);                              // ผมครอบหัว
-    [-.26, -.09, .09, .26].forEach((x, i) => part(S1, hairM, .13, .1, .08, x, .3 - (i % 2) * .03, .46, head));   // ผมหน้าม้า
-    if (L.hat === 3){ part(S1, hairM, .14, .22, .14, 0, .28, -.58, head); part(C1, accent, .09, .05, .09, 0, .38, -.52, head); part(CO, hairM, .05, .2, .05, 0, .66, .05, head); }   // หางม้า + ที่รัดผม + ปอยผม
-    else {                                                                           // มงกุฎ
-      part(TR, gold, .45, .45, .45, 0, .52, 0, head).rotation.x = Math.PI / 2;
-      for (let i = 0; i < 5; i++){ const a = i / 5 * 6.283; part(CO, gold, .07, .2, .07, Math.sin(a) * .45, .64, Math.cos(a) * .45, head); }
-      part(S1, km(0xd0212f, .2), .06, .06, .06, 0, .55, .46, head);
-    }
-  }
-  // ผ้าคลุม (โบกตามลม — อัปเดตทุกเฟรมใน render loop)
-  if (capeC){ const cg = capeGeo(), cm = new THREE.Mesh(cg, km(capeC, .8, 0, { side:THREE.DoubleSide })); cm.castShadow = true; g.add(cm); U.cape = cg; }
-  // อาวุธ (มือขวา = arms[1]) / โล่ (มือซ้าย = arms[0])
-  if (L.weap === 0){ const sw = new THREE.Group(); sw.position.set(0, -.38, .08); sw.rotation.x = -.45; U.arms[1].add(sw); part(C1, brown, .035, .14, .035, 0, 0, 0, sw); part(B1, gold, .22, .045, .06, 0, .08, 0, sw); part(B1, km(0xf0f4fa, .2, .3), .06, .64, .018, 0, .42, 0, sw); }
-  if (L.weap === 1){ const ax = new THREE.Group(); ax.position.set(0, -.38, .08); ax.rotation.x = -.35; U.arms[1].add(ax); part(C1, brown, .035, .8, .035, 0, .2, 0, ax); part(B1, steelD, .3, .2, .05, .13, .52, 0, ax); part(B1, silver, .04, .22, .06, .28, .52, 0, ax); }
-  if (L.shield === 1){ const sh = new THREE.Group(); sh.position.set(-.13, -.24, .15); U.arms[0].add(sh); part(C1, accent, .3, .045, .3, 0, 0, 0, sh).rotation.x = Math.PI / 2; const rg = part(TR, gold, .3, .3, .3, 0, 0, .02, sh); part(S1, gold, .08, .08, .05, 0, 0, .05, sh); }
-  g.scale.setScalar(KS); return g;
-}
-function gait(p, ph, amp){                                       // ท่าเดิน (ขา/แขนแกว่งสลับ)
-  const u = p.mesh.userData.k; u.legs[0].rotation.x = Math.sin(ph) * amp; u.legs[1].rotation.x = -Math.sin(ph) * amp;
-  u.arms[0].rotation.x = -Math.sin(ph) * amp * .7; u.arms[1].rotation.x = Math.sin(ph) * amp * .7;
-}
-function sitPose(p, k){ const u = p.mesh.userData.k; u.legs.forEach((lg, i) => { lg.rotation.x = -1.15 * k; lg.rotation.z = (i ? 1 : -1) * .35 * k; }); u.arms.forEach(a => a.rotation.x = -.7 * k); }
-function waveCape(p, t){                                         // ผ้าคลุมสั่นไหว
-  const cg = p.mesh.userData.k.cape; if (!cg) return;
-  const pos = cg.attributes.position, b = cg.userData.base, v = cg.userData.v, mv = (p.tw ? 1 : .35) * (GFX.hi ? 1 : .6);
-  for (let i = 0; i < pos.count; i++){
-    const w = Math.sin(t * 4 + v[i] * 5 + b[i * 3] * 3) * .06 * v[i] * mv;
-    pos.setXYZ(i, b[i * 3] + w * .4, b[i * 3 + 1], b[i * 3 + 2] - Math.abs(w) - v[i] * .1 * mv * (p.tw ? 1 : 0));
-  }
-  pos.needsUpdate = true; if (GFX.hi) cg.computeVertexNormals();
+  add(.3,.3,.34,-.18,.15,.02,0x3a3f50); add(.3,.3,.34,.18,.15,.02,0x3a3f50);      // รองเท้า
+  add(.28,.3,.28,-.18,.4,0,0x555b6e); add(.28,.3,.28,.18,.4,0,0x555b6e);          // ขา
+  add(.8,.8,.4,0,.95,0,color,.2,.45);                                              // ลำตัว (เกราะ)
+  add(.84,.1,.44,0,.58,0,gold,.2,.4);                                              // เข็มขัด
+  add(.26,.14,.3,-.52,1.32,0,steel,.2,.4); add(.26,.14,.3,.52,1.32,0,steel,.2,.4);// ไหล่
+  add(.24,.66,.24,-.55,.95,0,steel,.2,.45); add(.24,.66,.24,.55,.95,0,steel,.2,.45); // แขน
+  add(.5,.5,.5,0,1.6,0,SKINS[L.skin],0,.7);                                        // หัว
+  add(.07,.07,.02,-.12,1.64,.26,0x1a1a1a); add(.07,.07,.02,.12,1.64,.26,0x1a1a1a);// ตา
+  add(.16,.03,.02,0,1.5,.26,0x8a3b3b);                                             // ปาก
+  if (L.hat === 0){ add(.58,.28,.58,0,1.85,0,steel,.2,.4); add(.1,.3,.34,0,2.1,0,color); add(.5,.07,.02,0,1.8,.3,0x20242e); }
+  if (L.hat === 1){ add(.58,.28,.58,0,1.85,0,steel,.2,.4); add(.1,.3,.1,-.34,2.05,0,0xf5f0dc); add(.1,.3,.1,.34,2.05,0,0xf5f0dc); add(.5,.07,.02,0,1.8,.3,0x20242e); }
+  if (L.hat === 2){ add(.58,.14,.58,0,1.83,0,gold,.3,.35); [-.2,0,.2].forEach(x => add(.1,.22,.1,x,2.0,0,gold,.3,.35)); }
+  if (L.hat === 3){ add(.56,.16,.56,0,1.88,0,0x4a2f1a,0,.9); add(.56,.3,.1,0,1.7,-.25,0x4a2f1a,0,.9); }
+  if (L.weap === 0){ add(.07,.2,.07,.55,.52,.2,wood); add(.3,.07,.1,.55,.64,.2,gold,.3,.35); add(.08,.9,.08,.55,1.12,.2,0xe8eef8,.3,.25); }
+  if (L.weap === 1){ add(.07,1,.07,.55,.95,.2,wood); add(.4,.28,.08,.72,1.38,.2,steel,.3,.35); }
+  if (L.shield === 1){ add(.1,.62,.62,-.8,.95,0,color,.2,.4); add(.14,.22,.22,-.86,.95,0,gold,.3,.35); }
+  if (L.cape) add(.74,.95,.07,0,.98,-.26,CAPES[L.cape],0,.9);
+  g.scale.setScalar(.8); return g;
 }
 function flash(p){
   const set = h => p.mesh.traverse(o => { if (o.material && o.material.emissive) o.material.emissive.setHex(h); });
   set(0xff2222); setTimeout(() => set(0), 350);
 }
-/* ป้ายเหนือหัว: วงกลมทอง = เลขช่องที่ยืนอยู่ + ชื่อผู้เล่น */
-function makeTag(p){
-  const c = document.createElement('canvas'); c.width = 420; c.height = 120;
-  const tex = new THREE.CanvasTexture(c), sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true, depthTest:false, depthWrite:false, fog:false }));
-  sp.renderOrder = 10; sp.scale.set(3.9, 1.12, 1); sp.position.set(0, 3.45, 0);
-  p.tag = { c, tex, last:-1 }; p.mesh.add(sp); drawTag(p);
-}
-function drawTag(p){
-  const t = p.tag; if (!t || t.last === p.pos) return; t.last = p.pos;
-  const x = t.c.getContext('2d'), w = t.c.width, h = t.c.height; x.clearRect(0, 0, w, h);
-  x.fillStyle = hex(COLORS[p.color]); x.beginPath(); x.arc(h * .5, h * .5, h * .5 - 6, 0, 6.283);                       // (ตัวรองพื้นป้ายชื่อ)
-  const px = 78, pw = w - px - 6; x.beginPath(); x.moveTo(px + 30, 30); x.arc(px + pw - 30, h / 2, h / 2 - 30, -Math.PI / 2, Math.PI / 2); x.lineTo(px + 30, h - 30); x.arc(px + 30, h / 2, h / 2 - 30, Math.PI / 2, Math.PI * 1.5); x.closePath(); x.fill();
-  x.font = 'bold 40px Kanit, system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#fff'; x.fillText(p.name, px + pw / 2 + 12, h / 2 + 3, pw - 60);
-  x.beginPath(); x.arc(52, h / 2, 46, 0, 6.283); x.fillStyle = '#ffc83d'; x.fill(); x.lineWidth = 6; x.strokeStyle = '#fff'; x.stroke();
-  x.fillStyle = '#3b2500'; x.font = (p.pos >= 100 ? 'bold 36px' : 'bold 46px') + ' Kanit, system-ui, sans-serif'; x.fillText(p.pos === 0 ? 'เริ่ม' : String(p.pos), 52, h / 2 + 3, 80);
-  t.tex.needsUpdate = true;
-}
 
 /* ---------- หน้าปรับแต่ง + พรีวิว 3D ---------- */
-const looks = SLOT_LOOKS.map(l => ({ ...l }));
+const looks = [0,1,2,3].map(defLook);
 let curI = 0, pvKnight = null;
-const pv = new THREE.WebGLRenderer({ canvas:$('pv'), antialias:true }); pv.setSize(170, 230, false); pv.setClearColor(0xcfe6ff);
+const pv = new THREE.WebGLRenderer({ canvas:$('pv'), antialias:true }); pv.setSize(170, 210, false); pv.setClearColor(0xcfe6ff);
 const pvScene = new THREE.Scene(); pvScene.add(new THREE.HemisphereLight(0xffffff, 0x888888, .9));
 { const dl = new THREE.DirectionalLight(0xffffff, .8); dl.position.set(3, 5, 4); pvScene.add(dl); }
-const pvCam = new THREE.PerspectiveCamera(35, 170/230, .1, 50); pvCam.position.set(0, 1.3, 6.4); pvCam.lookAt(0, 1.25, 0);
+const pvCam = new THREE.PerspectiveCamera(35, 170/210, .1, 50); pvCam.position.set(0, 1.3, 5); pvCam.lookAt(0, 1, 0);
 const colorOf = i => $('c'+i).value;
 function refreshPreview(){
   if (pvKnight) pvScene.remove(pvKnight);
-  pvKnight = makeKnight(COLORS[colorOf(curI)], looks[curI]); pvKnight.scale.setScalar(1.0); pvScene.add(pvKnight);
+  pvKnight = makeKnight(COLORS[colorOf(curI)], looks[curI]); pvKnight.scale.setScalar(1.05); pvScene.add(pvKnight);
 }
 function renderOpts(){
   $('custOpts').innerHTML = Object.entries(OPTS).map(([k,o]) => `<div class="mb-2"><div class="fw-semibold">${o.t}</div><div class="d-flex flex-wrap gap-1">` +
@@ -761,7 +619,7 @@ function renderOpts(){
       ? `<button class="btn sw ${looks[curI][k]===idx?'on':''}" data-k="${k}" data-v="${idx}" style="background:${v===null?'#fff':hex(v)}">${v===null?'✕':''}</button>`
       : `<button class="btn btn-outline-secondary btn-sm ${looks[curI][k]===idx?'on':''}" data-k="${k}" data-v="${idx}">${v}</button>`).join('') + '</div></div>').join('');
 }
-$('custOpts').onclick = e => { const b = e.target.closest('button'); if (!b) return; looks[curI][b.dataset.k] = +b.dataset.v; looks[curI].auto = false; renderOpts(); refreshPreview(); };
+$('custOpts').onclick = e => { const b = e.target.closest('button'); if (!b) return; looks[curI][b.dataset.k] = +b.dataset.v; renderOpts(); refreshPreview(); };
 $('custDone').onclick = () => $('cust').classList.add('d-none');
 function openCust(i){ curI = i; $('custT').textContent = 'ปรับแต่ง: ' + ($('n'+i).value.trim() || 'อัศวิน '+(i+1)) + ' · ' + ROLES[colorOf(i)].n; renderOpts(); refreshPreview(); $('cust').classList.remove('d-none'); }
 
@@ -797,84 +655,27 @@ async function askSpecial(p){
   const c = await take('special'); hidePop(); return c;
 }
 
-/* ---------- การเคลื่อนไหวของอัศวิน (ทั้งหมดเป็น tween ตามเวลาจริง) ---------- */
-async function stepTo(p, to, o = {}){                            // กระโดดไปช่องถัดไป 1 ช่อง (มีบีบ/ยืดตัว + ท่าเดิน + ฝุ่น)
-  const a = p.mesh.position.clone(), b = tileXZ(p, to), arc = o.arc ?? .55, dur = o.dur ?? .3;
-  if (Math.hypot(b.x - a.x, b.z - a.z) > .01) p.face = Math.atan2(b.x - a.x, b.z - a.z);
-  p.pos = to; hud(); SFX.step();
-  await ptween(p, dur, k => {
-    const e = ease(k), s = Math.sin(k * Math.PI);
-    p.mesh.position.set(lerp(a.x, b.x, e), .2 + s * arc, lerp(a.z, b.z, e));
-    p.mesh.scale.set(KS * (1 - s * .08), KS * (1 + s * .16), KS * (1 - s * .08)); gait(p, k * Math.PI * 2, .8 * s);
-  });
-  p.mesh.position.set(b.x, .2, b.z); p.mesh.scale.setScalar(KS); gait(p, 0, 0);
-  burst(p.mesh.position.clone().setY(.3), 0xe9e2c8, 3, 1.1, .8, .7);
-}
-async function walk(p, to, o){ const d = to >= p.pos ? 1 : -1; while (p.pos !== to) await stepTo(p, p.pos + d, o); }
-async function warp(p, to){                                      // วาร์ป (กลับจุดพัก): หดตัว → ย้าย → ขยายตัว
-  burst(above(p, 1), 0x9b59ff, 14, 2.5, 3); SFX.warp();
-  await ptween(p, .25, k => p.mesh.scale.setScalar(Math.max(.001, KS * (1 - ease(k)))));
-  p.pos = to; const b = tileXZ(p, to); p.mesh.position.set(b.x, .2, b.z); hud(); burst(above(p, 1), 0x9b59ff, 14, 2.5, 3);
-  await ptween(p, .3, k => p.mesh.scale.setScalar(Math.max(.001, KS * ease(k)))); p.mesh.scale.setScalar(KS);
-}
-const SADDLE = .86;                                              // ความสูงจุดนั่งบนอาน (เทียบกับพื้นม้า)
-async function rideHorse(p, n, to){                              // ขึ้นม้า → ม้าควบไปช่องปลายทาง → ลงม้า → ม้าเดินกลับที่เดิม (เบื้องหลัง)
-  const h = PROPS[n];
-  if (!h || replaying){ p.pos = to; const b = tileXZ(p, to); p.mesh.position.set(b.x, .2, b.z); hud(); return; }
-  const hd = h.userData; await hd.busy;
-  const pts = []; for (let t = n; t <= to; t++){ const q = tilePos(t); pts.push(new THREE.Vector3(q.x, .2, q.z)); }
-  const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal'), L = curve.getLength();
-  const homePos = h.position.clone(), homeYaw = h.rotation.y;
-  let done; hd.busy = new Promise(r => done = r); hd.running = true;
-  say(`🐎 ม้าศึก! ${p.name} จะขึ้นม้าวิ่งไปข้างหน้า ${to - n} ช่อง → ช่อง ${to}${p.color === 'น้ำเงิน' ? ' (สายม้า +3)' : ''}`); await sleep(800);
-  const tg0 = curve.getTangentAt(0), yaw0 = Math.atan2(tg0.x, tg0.z), saddle = () => new THREE.Vector3(h.position.x, h.position.y + SADDLE, h.position.z);
-  p.mounted = true;
-  await ptween(p, .3, k => { h.rotation.y = lerpAngle(homeYaw, yaw0, ease(k)); });                // ม้าหันหัวไปทางเส้นทาง
-  say('🐎 กระโดดขึ้นหลังม้า!'); SFX.mount();
-  const a = p.mesh.position.clone();
-  await ptween(p, .5, k => {
-    const e = ease(k), s = saddle();
-    p.mesh.position.set(lerp(a.x, s.x, e), lerp(a.y, s.y, e) + Math.sin(k * Math.PI) * .9, lerp(a.z, s.z, e));
-    p.mesh.rotation.y = lerpAngle(p.mesh.rotation.y, yaw0, .25); sitPose(p, k);
-  });
-  say('🐎 ม้ากำลังควบไปข้างหน้า...');
-  const dur = Math.max(1.1, L / 9); let lastStep = 0;
-  await ptween(p, dur, k => {
-    const u = ease(k), pt = curve.getPointAt(u), tg = curve.getTangentAt(Math.min(u, .999)), f = k * dur * 13, bob = Math.abs(Math.sin(f)) * .12;
-    h.position.set(pt.x, .2 + bob, pt.z); h.rotation.y = lerpAngle(h.rotation.y, Math.atan2(tg.x, tg.z), .35); gallop(hd, f, .9);
-    const s = saddle(); p.mesh.position.copy(s); p.mesh.rotation.y = h.rotation.y;
-    if (Math.floor(f / 3.14) !== lastStep){ lastStep = Math.floor(f / 3.14); SFX.gallop(); burst(h.position.clone().setY(.3), 0xe9e2c8, 2, 1.4, .8, .8); }
-  });
-  gallop(hd, 0, 0); p.pos = to; hud();
-  say(`🐎 ถึงช่อง ${to} แล้ว — ลงจากม้า`);
-  const a2 = p.mesh.position.clone(), b = tileXZ(p, to), yawEnd = h.rotation.y;
-  await ptween(p, .5, k => {
-    const e = ease(k); p.mesh.position.set(lerp(a2.x, b.x, e), lerp(a2.y, b.y, e) + Math.sin(k * Math.PI) * .8, lerp(a2.z, b.z, e));
-    sitPose(p, 1 - ease(k));
-  });
-  p.mounted = false; p.face = yawEnd; p.mesh.position.set(b.x, .2, b.z); p.mesh.scale.setScalar(KS); gait(p, 0, 0);
-  burst(p.mesh.position.clone().setY(.3), 0xe9e2c8, 6, 1.5, 1);
-  (async () => {                                                  // ม้าเดินกลับที่เดิม (ไม่บล็อกเกม)
-    await tween(.3, k => { h.rotation.y = lerpAngle(yawEnd, yawEnd + Math.PI, ease(k)); });
-    const back = new THREE.CatmullRomCurve3(pts.slice().reverse(), false, 'centripetal'), bd = Math.max(1.4, L / 4);
-    await tween(bd, k => {
-      const u = ease(k), pt = back.getPointAt(u), tg = back.getTangentAt(Math.min(u, .999)), f = k * bd * 7;
-      h.position.set(pt.x, .2 + Math.abs(Math.sin(f)) * .04, pt.z); h.rotation.y = lerpAngle(h.rotation.y, Math.atan2(tg.x, tg.z), .3); gallop(hd, f, .5);
-    });
-    gallop(hd, 0, 0); h.position.copy(homePos);
-    await tween(.3, k => { h.rotation.y = lerpAngle(h.rotation.y, homeYaw, ease(k)); });
-    h.rotation.y = homeYaw; hd.running = false; done();
-  })();
-}
-
 /* ---------- State & Actions ---------- */
+function place(p, n){
+  const t = tilePos(n); t.x += OFF[p.i][0]; t.z += OFF[p.i][1];
+  p.mesh.rotation.y = Math.atan2(t.x - p.target.x, t.z - p.target.z);
+  p.target.copy(t); p.hop = 1;
+}
+async function walk(p, to){
+  const d = to >= p.pos ? 1 : -1;
+  while (p.pos !== to){ p.pos += d; place(p, p.pos); SFX.step(); hud(); await sleep(300); }
+}
+async function jump(p, to){
+  burst(p.mesh.position.clone().setY(1), 0x9b59ff, 14, 2.5, 3);
+  p.pos = to; place(p, to); SFX.warp(); hud(); await sleep(800);
+}
 const above = (p, y = 1.4) => p.mesh.position.clone().setY(y);
 async function hurt(q){
   q.hp--; SFX.hurt(); flash(q); burst(above(q), 0xff3355, 16, 3, 3); hud(); await sleep(700);
   if (q.hp <= 0){
     const cp = Math.floor(q.pos / 10) * 10;
     say(`${q.name} พลังชีวิตหมด! กลับไปจุดพักช่อง ${cp} และฟื้น HP`);
-    q.hp = q.maxHp; await warp(q, cp);
+    q.hp = q.maxHp; await jump(q, cp);
   }
 }
 async function duel(p){
@@ -882,8 +683,8 @@ async function duel(p){
   const d = S.players.find(q => q !== p && q.pos === p.pos); if (!d) return;
   const r = await askDuel(p, d);
   burst(above(p, 1.2), 0xffffff, 14, 3.5, 3);
-  if (r.a > r.d){ say(`⚔ ${p.name} ชนะ! ${d.name} เสีย HP 1 และกระเด็นถอยหลัง 3 ช่อง`); await sleep(800); await walk(d, Math.max(1, d.pos - 3), { arc:.9, dur:.35 }); await hurt(d); }
-  else { say(`🛡 ${d.name} ป้องกันได้! ${p.name} กระเด็นถอยหลัง 1 ช่อง`); await sleep(800); await walk(p, Math.max(1, p.pos - 1), { arc:.9, dur:.35 }); }
+  if (r.a > r.d){ say(`${p.name} ชนะ! ${d.name} เสีย HP 1 และกระเด็นถอยหลัง 3 ช่อง`); await sleep(800); await walk(d, Math.max(1, d.pos - 3)); await hurt(d); }
+  else { say(`${d.name} ป้องกันได้! ${p.name} กระเด็นถอยหลัง 1 ช่อง`); await sleep(800); await walk(p, Math.max(1, p.pos - 1)); }
 }
 let shake = 0;
 async function dragonFire(){
@@ -900,7 +701,7 @@ function won(p){
 function nextTurn(){
   const n = S.players.length;
   S.turn = (S.turn + 1) % n;
-  while (S.players[S.turn].freeze > 0){ const q = S.players[S.turn]; q.freeze--; say(`⏸ ${q.name} ติดหลุมดำ ข้ามตานี้`); S.turn = (S.turn + 1) % n; }
+  while (S.players[S.turn].freeze > 0){ const q = S.players[S.turn]; q.freeze--; say(`${q.name} ติดหลุมดำ ข้ามตานี้`); S.turn = (S.turn + 1) % n; }
 }
 async function tumble(v){
   SFX.roll();
@@ -916,46 +717,44 @@ async function dispatch(a){
     if (e === 'BoostWarp') p.boost = 3;
     if (e === 'FullHeal') p.hp = p.maxHp;
     if (e === 'ForceSix') p.six = true;
-    SFX.good(); burst(above(p), 0x6bffb0, 14, 2.5, 3); say(`🎒 ${p.name} ใช้ ${ITEMS[a.id].n} — ${ITEMS[a.id].d}`); hud(); return;
+    SFX.good(); burst(above(p), 0x6bffb0, 14, 2.5, 3); say(`${p.name} ใช้ ${ITEMS[a.id].n}`); hud(); return;
   }
   if (a.type !== 'roll') return;
   let extra = false;
-  const v = p.six ? 6 : a.value, bonus = p.boost || 0, steps = v + bonus;
+  const v = p.six ? 6 : a.value, steps = v + (p.boost || 0);
   p.six = false; p.boost = 0; say('');
-  await tumble(bonus ? `${v}+${bonus}` : v);
-  say(`🎲 ${p.name} ทอยได้ ${v}${bonus ? ` +${bonus} (แครอท)` : ''} → เดินหน้า ${steps} ช่อง`); await sleep(600);
+  await tumble(steps > v ? `${v}+${steps - v}` : v);
   if (S.dragon && v === 1) await dragonFire();
   await walk(p, Math.min(SIZE, p.pos + steps));
   if (!won(p)){
     const t = S.map[p.pos];
-    if (p.pos % 10 === 0){ say(`🏳 ถึงจุดพักช่อง ${p.pos} — ปลอดภัย (ถ้า HP หมดจะกลับมาที่นี่)`); await sleep(700); }
     if (t){
       if (t.desc){ say(t.desc); await sleep(800); }
-      if (t.type === 'BlackHole'){ p.freeze = 1; say('🕳 ตกหลุมดำ! ต้องข้ามตาถัดไป'); SFX.hurt(); burst(above(p, .6), 0x9b59ff, 20, 2, 4); await sleep(900); }
+      if (t.type === 'BlackHole'){ p.freeze = 1; say('หลุมดำ! ต้องข้ามตาถัดไป'); SFX.hurt(); burst(above(p, .6), 0x9b59ff, 20, 2, 4); await sleep(900); }
       if (t.type === 'Horse'){
         const to = Math.min(SIZE - 1, t.value + (p.color === 'น้ำเงิน' ? 3 : 0));
-        await rideHorse(p, p.pos, to);
+        say(`ม้าศึก! วิ่งไปช่อง ${to}`); await sleep(500); await jump(p, to);
       }
       if (t.type === 'NPC'){
-        if (a.r < .5 || p.color === 'เขียว'){ extra = true; say('💙 NPC ใจดี! ได้ทอยเต๋าฟรีอีก 1 ครั้ง'); SFX.good(); burst(above(p), 0x6bd2ff, 12, 2, 3); await sleep(900); }
-        else { say(`💢 NPC ผลักถอยหลัง ${v} ช่อง`); await sleep(500); await walk(p, Math.max(1, p.pos - v)); }
+        if (a.r < .5 || p.color === 'เขียว'){ extra = true; say('NPC ใจดี! ได้ทอยเต๋าฟรีอีก 1 ครั้ง'); SFX.good(); burst(above(p), 0x6bd2ff, 12, 2, 3); await sleep(900); }
+        else { say(`NPC ผลักถอยหลัง ${v} ช่อง`); await sleep(500); await walk(p, Math.max(1, p.pos - v)); }
       }
       if (t.type === 'SpecialNPC'){
         const c = await askSpecial(p), q = S.players[c.t];
-        say(`✨ เต๋าพิเศษได้ ${c.v}! ${q.name} ${c.d > 0 ? 'เดินหน้า' : 'ถอยหลัง'} ${c.v} ช่อง`); $('dice').textContent = c.v; SFX.roll(); burst(above(q), 0xffe066, 16, 3, 3); await sleep(900);
+        say(`เต๋าพิเศษได้ ${c.v}! ${q.name} ${c.d > 0 ? 'เดินหน้า' : 'ถอยหลัง'} ${c.v} ช่อง`); $('dice').textContent = c.v; SFX.roll(); burst(above(q), 0xffe066, 16, 3, 3); await sleep(900);
         await walk(q, Math.max(1, Math.min(SIZE - 1, q.pos + c.d * c.v)));
       }
       if (t.type === 'Danger'){
-        if (p.shield){ p.shield = false; say('🛡 โล่ศักดิ์สิทธิ์กันกับดักไว้ได้!'); SFX.good(); burst(above(p), 0x9bd6ff, 16, 3, 3); await sleep(900); }
-        else { say('⚠ เหยียบกับดัก! เสียพลังชีวิต 1 ดวง'); await hurt(p); }
+        if (p.shield){ p.shield = false; say('โล่ศักดิ์สิทธิ์กันอันตรายไว้ได้!'); SFX.good(); burst(above(p), 0x9bd6ff, 16, 3, 3); await sleep(900); }
+        else { say('เจออันตราย! เสียพลังชีวิต 1 ดวง'); await hurt(p); }
       }
       if (t.type === 'Treasure'){
-        if (p.items.length >= MAX_ITEMS) say('📦 พบหีบสมบัติ แต่กระเป๋าเต็ม!');
-        else { const id = ITEM_IDS[Math.floor(a.k * ITEM_IDS.length)]; p.items.push(id); say(`📦 เปิดหีบ ได้รับ ${ITEMS[id].n}!`); SFX.good(); burst(above(p, 1), 0xffd84a, 22, 2.5, 4.5); }
+        if (p.items.length >= MAX_ITEMS) say('พบหีบสมบัติ แต่กระเป๋าเต็ม!');
+        else { const id = ITEM_IDS[Math.floor(a.k * ITEM_IDS.length)]; p.items.push(id); say(`ได้รับ ${ITEMS[id].n}!`); SFX.good(); burst(above(p, 1), 0xffd84a, 22, 2.5, 4.5); }
         await sleep(900);
       }
     }
-    if (p.color === 'เหลือง' && v % 2 === 0 && a.q < .2 && p.hp < p.maxHp){ p.hp++; say('🍀 ดวงดี! ฟื้นพลังชีวิต 1 ดวง'); SFX.good(); burst(above(p), 0x6bffb0, 14, 2.5, 3); hud(); await sleep(800); }
+    if (p.color === 'เหลือง' && v % 2 === 0 && a.q < .2 && p.hp < p.maxHp){ p.hp++; say('ดวงดี! ฟื้นพลังชีวิต 1 ดวง'); SFX.good(); burst(above(p), 0x6bffb0, 14, 2.5, 3); hud(); await sleep(800); }
     await duel(p);
     if (!S.dragon && S.players.some(q => q.pos >= ZONE)){ S.dragon = true; say('🐉 มังกรตื่นแล้ว! ถ้าใครทอยได้ 1 มังกรจะพ่นไฟ'); SFX.fire(); shake = .6; hud(); await sleep(1500); }
   }
@@ -965,7 +764,6 @@ async function dispatch(a){
 }
 function hud(){
   const p = S.players[S.turn], can = mine(p.i) && !S.busy && !S.over;
-  S.players.forEach(drawTag);
   $('turn').innerHTML = `<div class="who">${who(p)}${mine(p.i) && ONLINE ? ' <small>(คุณ)</small>' : ''}</div><div class="role">${ROLES[p.color].n}${S.dragon ? ' · 🐉 มังกรตื่นแล้ว' : ''}${ONLINE ? ` · ห้อง ${ROOM}` : ''}</div>`;
   $('rollBtn').disabled = !can; $('rollBtn').classList.toggle('pulse', can);
   $('inv').innerHTML = p.items.map(id => `<button class="btn btn-outline-light btn-sm" data-id="${id}" title="${ITEMS[id].d}" ${can ? '' : 'disabled'}>${ITEMS[id].n}</button>`).join('') || '<small class="text-secondary">ไม่มีไอเทม</small>';
@@ -1000,8 +798,7 @@ async function orderPhase(){
   S.players.sort((a,b) => (o[b.i] - o[a.i]) || (a.i - b.i));
   $('orderRes').textContent = 'ลำดับ: ' + S.players.map(x => x.name).join(' → ');
   await sleep(1800); $('order').classList.add('d-none');
-  ['top','side','tools','legend','log'].forEach(id => $(id).classList.remove('d-none')); hud(); setView();
-  say(`🏁 เริ่มเกม! ตาแรกคือ ${S.players[0].name}`);
+  ['top','side','tools','legend'].forEach(id => $(id).classList.remove('d-none')); hud(); setView();
 }
 async function gameLoop(){
   for (;;){
@@ -1012,10 +809,8 @@ async function gameLoop(){
 }
 const ring = new THREE.Mesh(new THREE.TorusGeometry(.78, .07, 8, 36), new THREE.MeshBasicMaterial({ color:0xffc83d, transparent:true, opacity:.9, fog:false }));
 ring.rotation.x = -Math.PI / 2; ring.visible = false; scene.add(ring);
-let capMs = 0;                                                    // จำกัดเฟรมเรต (0 = ไม่จำกัด)
 function applyGfx(){
   GFX.hi = document.querySelector('input[name=gfx]:checked').value === 'hi';
-  capMs = 1000 / +document.querySelector('input[name=fps]:checked').value;
   renderer.shadowMap.enabled = GFX.hi; sun.castShadow = GFX.hi;
   renderer.setPixelRatio(GFX.hi ? Math.min(devicePixelRatio || 1, 2) : 1); resize();
 }
@@ -1024,12 +819,14 @@ async function beginGame(cfg, plist){
   SIZE = cfg.size; ZONE = SIZE * 0.8; buildBoard();
   if (cfg.items && cfg.items.length) ITEM_IDS = cfg.items.filter(id => ITEMS[id]);
   S = { turn:0, over:false, busy:false, dragon:false, size:SIZE, seed:cfg.seed, mapSrc:cfg.mapSrc, map:cfg.map,
-        players:plist.map((q,i) => { const hp = q.color === 'แดง' ? 5 : 4, look = q.look && q.look.auto ? { ...SLOT_LOOKS[i % 4] } : { ...SLOT_LOOKS[0], ...q.look };
-          return { i, name:q.name, color:q.color, look, pos:0, hp, maxHp:hp, freeze:0, items:[], shield:false, boost:0, six:false, tw:0, face:Math.PI / 2, mounted:false }; }) };
+        players:plist.map((q,i) => { const hp = q.color === 'แดง' ? 5 : 4;
+          return { i, name:q.name, color:q.color, look:{ ...defLook(), ...q.look }, pos:0, hp, maxHp:hp, freeze:0, items:[], shield:false, boost:0, six:false }; }) };
   drawMarkers();
   S.players.forEach(p => {
-    p.mesh = makeKnight(COLORS[p.color], p.look);
-    const b = tileXZ(p, 1); p.mesh.position.set(b.x, .2, b.z); p.mesh.rotation.y = p.face; scene.add(p.mesh); makeTag(p);
+    p.mesh = makeKnight(COLORS[p.color], p.look); p.target = new THREE.Vector3(); p.hop = 0;
+    const lb = label(p.name, '#fff', hex(COLORS[p.color]), 256, 64, 2.8, .7, true); lb.position.set(0, 3.2, 0); p.mesh.add(lb);   // ป้ายชื่อเหนือหัว
+    const t = tilePos(1); p.target.set(t.x + OFF[p.i][0], 0, t.z + OFF[p.i][1]);
+    p.mesh.position.set(p.target.x, .2, p.target.z); scene.add(p.mesh);
   });
   ring.visible = true;
   $('setup').classList.add('d-none'); $('lobby').classList.add('d-none');
@@ -1046,8 +843,6 @@ $('sizes').innerHTML = [[100,'100 · เกมเร็ว'],[500,'500 · ขน
   const mobile = /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent);
   $('gfx').innerHTML = [['hi','สูง'],['lo','ต่ำ']].map(([v,l]) =>
     `<input type="radio" class="btn-check" name="gfx" id="gfx${v}" value="${v}" ${(v === 'lo') === mobile ? 'checked' : ''}><label class="btn btn-outline-secondary" for="gfx${v}">${l}</label>`).join('');
-  $('fpsg').innerHTML = [[60,'60'],[120,'120']].map(([v,l]) =>
-    `<input type="radio" class="btn-check" name="fps" id="fps${v}" value="${v}" ${(v === 60) === mobile ? 'checked' : ''}><label class="btn btn-outline-secondary" for="fps${v}">${l}</label>`).join('');
 }
 $('rows').innerHTML = [0,1,2,3].map(i => `
   <div class="input-group mb-2">
@@ -1064,7 +859,6 @@ function applyMode(){
   $('sizes').classList.toggle('d-none', m === 'join'); $('codeBox').classList.toggle('d-none', m !== 'join');
   $('startBtn').textContent = m === 'local' ? 'เริ่มเกม' : m === 'create' ? 'สร้างห้อง' : 'เข้าห้อง';
   $('setupErr').textContent = '';
-  if (m !== 'local' && !$('c0').dataset.rnd){ $('c0').dataset.rnd = 1; $('c0').selectedIndex = Math.floor(Math.random() * 4); }   // ออนไลน์: สุ่มสีเริ่มต้น ลดโอกาสสีซ้ำกัน
 }
 $('modes').onchange = applyMode; applyMode();
 
@@ -1108,35 +902,26 @@ $('startBtn').onclick = async () => {
   } finally { btn.disabled = false; btn.textContent = label0; }
 };
 
-/* ---------- Render loop (ตามเวลาจริง + ตัวจำกัดเฟรมเรต + ตัววัด fps) ---------- */
+/* ---------- Render loop ---------- */
 function resize(){ renderer.setSize(innerWidth, innerHeight); cam.aspect = innerWidth/innerHeight; cam.updateProjectionMatrix(); }
 addEventListener('resize', resize); applyGfx();
 const look = new THREE.Vector3(), want = new THREE.Vector3(), mid = new THREE.Vector3();
 cam.position.set(0,26,20); cam.lookAt(0,0,0);
-let tick = 0, lastT = performance.now(), cadence = lastT, fpsN = 0, fpsT = lastT;
+let tick = 0, last = performance.now();
 (function loop(){
   requestAnimationFrame(loop);
-  const now = performance.now();
-  if (capMs && now - cadence < capMs - 1.5) return;               // ข้ามเฟรมเพื่อคุมเฟรมเรต (จังหวะคงที่)
-  cadence = capMs ? now - ((now - cadence) % capMs) : now;
-  const dt = Math.min(.05, (now - lastT) / 1000); lastT = now; tick += dt * 1.8;
-  fpsN++; if (now - fpsT > 500){ $('fps').textContent = Math.round(fpsN * 1000 / (now - fpsT)) + ' fps'; fpsN = 0; fpsT = now; }
-  for (let i = tweens.length - 1; i >= 0; i--){                   // tween ทั้งหมด
-    const tw = tweens[i]; tw.t += dt; const k = Math.min(1, tw.t / tw.dur); tw.fn(k);
-    if (k >= 1){ tweens.splice(i, 1); tw.res(); }
-  }
+  const now = performance.now(), dt = Math.min(.05, (now - last) / 1000); last = now; tick += dt * 1.8;
   clouds.forEach((c,k) => { c.position.x += (.6 + k * .12) * dt; if (c.position.x > 90) c.position.x = -90; });
-  anim.forEach(a => {
+  anim.forEach(a => {                                                  // พร็อพเคลื่อนไหว
     const o = a.o;
     if (a.k === 'bob') o.position.y = (o.userData.y0 || 0) + Math.sin(tick * 2 + a.ph) * .05;
     else if (a.k === 'spin') o.rotation.y += dt * 1.8;
     else if (a.k === 'swirl') o.rotation.z += dt * (a.ph > 3 ? 2.2 : -3);
     else if (a.k === 'flame') o.scale.set(1 + Math.sin(tick * 9 + a.ph) * .15, 1 + Math.sin(tick * 11 + a.ph) * .25, 1 + Math.sin(tick * 9 + a.ph) * .15);
     else if (a.k === 'flag') o.rotation.y = Math.sin(tick * 3 + a.ph) * .3;
-    else if (a.k === 'horse'){ const hd = o.userData; if (!hd.running){ hd.head.rotation.x = Math.sin(tick * 1.2 + a.ph) * .06; hd.tail.rotation.x = .6 + Math.sin(tick * 1.6 + a.ph) * .12; } }
   });
   if (dragonHead) dragonHead.rotation.x = Math.sin(tick * 1.4) * .15;
-  for (let i = fx.length - 1; i >= 0; i--){
+  for (let i = fx.length - 1; i >= 0; i--){                           // อนุภาค
     const f = fx[i]; f.t += dt;
     f.m.position.x += f.vx * dt; f.m.position.y += f.vy * dt; f.m.position.z += f.vz * dt; f.vy -= 9 * dt;
     f.m.material.opacity = Math.max(0, 1 - f.t / f.life);
@@ -1144,25 +929,25 @@ let tick = 0, lastT = performance.now(), cadence = lastT, fpsN = 0, fpsT = lastT
   }
   if (S && S.players[0].mesh) {
     S.players.forEach(p => {
-      if (!p.mounted) p.mesh.rotation.y = lerpAngle(p.mesh.rotation.y, p.face, Math.min(1, dt * 14));   // หันตัวนุ่มนวล
-      if (!p.tw){                                                  // ท่ายืนนิ่ง: หายใจ + แขนแกว่งเบาๆ
-        const br = 1 + Math.sin(tick * 2 + p.i) * .012, u = p.mesh.userData.k;
-        p.mesh.scale.set(KS, KS * br, KS); u.arms[0].rotation.x = Math.sin(tick * 1.5 + p.i) * .05; u.arms[1].rotation.x = -Math.sin(tick * 1.5 + p.i) * .05;
-        if (!p.mounted){ u.legs[0].rotation.x = 0; u.legs[1].rotation.x = 0; }
-      }
-      waveCape(p, tick);
+      p.mesh.position.x += (p.target.x - p.mesh.position.x) * Math.min(1, dt * 12);
+      p.mesh.position.z += (p.target.z - p.mesh.position.z) * Math.min(1, dt * 12);
+      const h0 = p.hop; p.hop = Math.max(0, p.hop - dt * 3.6);
+      if (h0 > 0 && p.hop === 0) burst(p.mesh.position.clone().setY(.3), 0xe9e2c8, 4, 1.2, .8, .7);   // ฝุ่นตอนลงพื้น
+      const s = Math.sin(p.hop * Math.PI), br = 1 + Math.sin(tick * 2 + p.i) * .012;
+      p.mesh.position.y = .2 + s * .6;
+      p.mesh.scale.set(.8 * (1 - s * .08), .8 * (1 + s * .16) * br, .8 * (1 - s * .08));                // บีบตัวตอนกระโดด + หายใจ
     });
     const cur = S.players[S.turn], f = cur.mesh.position;
-    ring.position.set(f.x, .32, f.z); ring.rotation.z += dt * 1.5; ring.material.color.setHex(COLORS[cur.color]); ring.scale.setScalar(1 + Math.sin(tick * 3) * .06); ring.visible = !S.over && !cur.mounted;
-    look.lerp(overview ? mid.set(0, 0, ov.cz) : f, Math.min(1, dt * (cur.mounted ? 9 : 5)));
+    ring.position.set(f.x, .32, f.z); ring.rotation.z += dt * 1.5; ring.material.color.setHex(COLORS[cur.color]); ring.scale.setScalar(1 + Math.sin(tick * 3) * .06); ring.visible = !S.over;
+    look.lerp(overview ? mid.set(0, 0, ov.cz) : f, Math.min(1, dt * 5));
     const e = Math.min(1, dt * 9); orb.az += (orb.tAz - orb.az) * e; orb.pol += (orb.tPol - orb.pol) * e; orb.dist += (orb.tDist - orb.dist) * e;
     want.set(look.x + orb.dist * Math.sin(orb.pol) * Math.sin(orb.az), look.y + orb.dist * Math.cos(orb.pol), look.z + orb.dist * Math.sin(orb.pol) * Math.cos(orb.az));
     cam.position.lerp(want, Math.min(1, dt * 12)); cam.lookAt(look);
     if (shake > .01){ cam.position.x += (Math.random() - .5) * shake; cam.position.y += (Math.random() - .5) * shake * .6; shake *= .9; }
-    sun.target.position.copy(look); sun.position.set(look.x + 18, look.y + 32, look.z + 14);
+    sun.target.position.copy(look); sun.position.set(look.x + 18, look.y + 32, look.z + 14);               // เงาตามจุดที่กล้องมอง
   }
   sky.position.copy(cam.position); sunGlow.position.copy(cam.position).addScaledVector(SUN_DIR, 900);
-  if (!$('cust').classList.contains('d-none') && pvKnight){ pvKnight.rotation.y += dt * 1.2; waveCape({ mesh:pvKnight, tw:0 }, tick); pv.render(pvScene, pvCam); }
+  if (!$('cust').classList.contains('d-none') && pvKnight){ pvKnight.rotation.y += .02; pv.render(pvScene, pvCam); }
   renderer.render(scene, cam);
 })();
 </script>
